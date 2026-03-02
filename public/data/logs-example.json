@@ -1,0 +1,91 @@
+{
+  "logs": [
+    {
+      "id": "log-001",
+      "timestamp": "2026-03-02T10:30:21.123Z",
+      "service": "checkout",
+      "env": "prod",
+      "level": "ERROR",
+      "message": "Payment provider timeout after 3 retries",
+      "metadata": {
+        "userId": "user-12345",
+        "requestId": "req-abc123def456",
+        "traceId": "trace-001-001",
+        "spanId": "span-001-002",
+        "retryCount": 3,
+        "timeout_ms": 5000,
+        "provider": "stripe",
+        "attempt": "3/3"
+      },
+      "tags": {
+        "endpoint": "/api/checkout/pay",
+        "method": "POST",
+        "region": "ap-northeast-2",
+        "cluster": "apne2-a"
+      }
+    },
+    {
+      "id": "log-002",
+      "timestamp": "2026-03-02T10:30:18.456Z",
+      "service": "gateway",
+      "env": "prod",
+      "level": "WARN",
+      "message": "Upstream latency above threshold p95=1.4s",
+      "metadata": {
+        "requestId": "req-def456",
+        "traceId": "trace-002-001",
+        "latency_p95_ms": 1400,
+        "threshold_ms": 1000,
+        "upstream_service": "api-server"
+      },
+      "tags": {
+        "endpoint": "/api/gateway",
+        "method": "GET"
+      }
+    },
+    {
+      "id": "log-003",
+      "timestamp": "2026-03-02T10:30:10.789Z",
+      "service": "search",
+      "env": "staging",
+      "level": "INFO",
+      "message": "Index refresh completed in 320ms",
+      "metadata": {
+        "indexName": "products-v3",
+        "documents": 2345678,
+        "duration_ms": 320,
+        "shards": 5
+      },
+      "tags": {
+        "engine": "elasticsearch",
+        "version": "8.5"
+      }
+    },
+    {
+      "id": "log-004",
+      "timestamp": "2026-03-02T10:30:02Z",
+      "service": "payments",
+      "env": "prod",
+      "level": "ERROR",
+      "message": "Circuit breaker opened for external gateway",
+      "metadata": {
+        "traceId": "trace-003-001",
+        "service": "stripe-gateway",
+        "failureRate": 0.95,
+        "threshold": 0.5,
+        "failures_in_window": 19,
+        "window_size": 20
+      },
+      "tags": {
+        "circuit_breaker": "stripe",
+        "state": "OPEN"
+      }
+    }
+  ],
+  "pagination": {
+    "total": 1234,
+    "page": 1,
+    "pageSize": 50,
+    "hasMore": true
+  }
+}
