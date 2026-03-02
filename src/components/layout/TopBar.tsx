@@ -100,15 +100,6 @@ export default function TopBar({ onMenuClick, showMenuButton = false }: TopBarPr
             >
               LogTech
             </Typography>
-            <Typography 
-              variant="caption" 
-              sx={{ 
-                color: (theme) => theme.palette.text.secondary,
-                lineHeight: 1,
-              }}
-            >
-              v0.1.0
-            </Typography>
           </Box>
           <Chip
             label="Live"

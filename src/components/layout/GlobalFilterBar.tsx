@@ -125,6 +125,7 @@ export const GlobalFilterBar: React.FC<GlobalFilterBarProps> = ({
             value={value.service}
             onChange={(e) => handleServiceChange(e.target.value)}
             displayEmpty
+            renderValue={(selected) => selected.length === 0 ? 'All Services' : selected.join(', ')}
             sx={{
               color: (theme) => theme.palette.text.primary,
               fontSize: '0.875rem',
@@ -151,6 +152,7 @@ export const GlobalFilterBar: React.FC<GlobalFilterBarProps> = ({
             value={value.env}
             onChange={(e) => handleEnvChange(e.target.value)}
             displayEmpty
+            renderValue={(selected) => selected.length === 0 ? 'All Envs' : selected.join(', ')}
             sx={{
               color: (theme) => theme.palette.text.primary,
               fontSize: '0.875rem',
@@ -177,6 +179,7 @@ export const GlobalFilterBar: React.FC<GlobalFilterBarProps> = ({
             value={value.cluster}
             onChange={(e) => handleClusterChange(e.target.value)}
             displayEmpty
+            renderValue={(selected) => selected.length === 0 ? 'All Clusters' : selected.join(', ')}
             sx={{
               color: (theme) => theme.palette.text.primary,
               fontSize: '0.875rem',
