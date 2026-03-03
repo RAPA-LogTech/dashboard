@@ -134,10 +134,12 @@ export default function Sidebar({
           onClick={onOpenAiChat}
           sx={{
             bgcolor: '#9333ea',
+            color: '#ffffff',
             textTransform: 'none',
             fontSize: '0.875rem',
             '&:hover': {
               bgcolor: '#7e22ce',
+              color: '#ffffff',
             },
           }}
         >

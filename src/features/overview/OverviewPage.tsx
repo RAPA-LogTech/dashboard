@@ -57,7 +57,7 @@ export default function OverviewPage() {
       {/* KPI Cards Section */}
       <Grid container spacing={{ xs: 1.5, sm: 2, md: 2 }}>
         {/* Error Rate */}
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={6} lg={3}>
           <KPICard
             title="Error Rate"
             value={latestErrorRate}
@@ -76,7 +76,7 @@ export default function OverviewPage() {
         </Grid>
 
         {/* Latency P95 */}
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={6} lg={3}>
           <KPICard
             title="Latency P95"
             value={latestLatency}
@@ -92,7 +92,7 @@ export default function OverviewPage() {
         </Grid>
 
         {/* Throughput */}
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={6} lg={3}>
           <KPICard
             title="Throughput"
             value={latestThroughput}
@@ -103,7 +103,7 @@ export default function OverviewPage() {
         </Grid>
 
         {/* Service Health */}
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={6} md={6} lg={3}>
           <KPICard
             title="Service Health"
             value={`${healthyServices}/${mockServices.length}`}
@@ -119,7 +119,7 @@ export default function OverviewPage() {
       {/* Main Content Grid */}
       <Grid container spacing={{ xs: 1.5, sm: 2, md: 2 }}>
         {/* Top Services Table */}
-        <Grid item xs={12} md={8}>
+        <Grid item xs={12} md={12} lg={8}>
           <Card sx={{ 
             bgcolor: (theme) => theme.palette.mode === 'dark' ? '#0f172a' : '#ffffff',
             border: '1px solid',
@@ -304,7 +304,7 @@ export default function OverviewPage() {
         </Grid>
 
         {/* Recent Alerts */}
-        <Grid item xs={12} md={4}>
+        <Grid item xs={12} md={12} lg={4}>
           <Card sx={{ 
             bgcolor: (theme) => theme.palette.mode === 'dark' ? '#0f172a' : '#ffffff',
             border: '1px solid',
