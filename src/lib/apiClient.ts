@@ -19,7 +19,19 @@ export const apiClient = {
   },
   async getLogs(): Promise<LogEntry[]> {
     await simulateLatency();
-    return mockLogs;
+
+    try {
+      const response = await fetch('/data/logs-example.json');
+
+      if (!response.ok) {
+        return mockLogs;
+      }
+
+      const data = (await response.json()) as { logs?: LogEntry[] };
+      return data.logs ?? mockLogs;
+    } catch {
+      return mockLogs;
+    }
   },
   async getMetrics(): Promise<MetricSeries[]> {
     await simulateLatency();

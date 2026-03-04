@@ -1,5 +1,7 @@
 'use client';
 
+import { memo } from 'react';
+
 import {
   TableContainer,
   Table,
@@ -9,11 +11,48 @@ import {
   TableCell,
   Chip,
   Paper,
+  Box,
+  Typography,
 } from '@mui/material';
 import { LogEntry } from '@/lib/types';
 import { formatTimestamp } from '@/lib/formatters';
 
-export default function LogsTable({ logs, onSelect }: { logs: LogEntry[]; onSelect: (log: LogEntry) => void }) {
+type LogsTableProps = {
+  logs: LogEntry[];
+  onSelect: (log: LogEntry) => void;
+  query?: string;
+  compact?: boolean;
+};
+
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const highlightText = (text: string, query?: string) => {
+  if (!query?.trim()) return <>{text}</>;
+
+  const term = query.includes(':') ? query.split(':').slice(1).join(':').replace(/^"|"$/g, '').trim() : query.trim();
+  if (!term) return <>{text}</>;
+
+  const regex = new RegExp(`(${escapeRegExp(term)})`, 'ig');
+  const parts = text.split(regex);
+
+  return (
+    <>
+      {parts.map((part, index) => (
+        part.toLowerCase() === term.toLowerCase() ? (
+          <Box key={`${part}-${index}`} component="span" sx={{ bgcolor: '#ffe45c', color: '#000000', px: 0.25, borderRadius: 0.25 }}>
+            {part}
+          </Box>
+        ) : (
+          <Box key={`${part}-${index}`} component="span">
+            {part}
+          </Box>
+        )
+      ))}
+    </>
+  );
+};
+
+function LogsTableComponent({ logs, onSelect, query, compact = false }: LogsTableProps) {
   const getLevelColor = (level: string) => {
     switch (level) {
       case 'ERROR':
@@ -140,14 +179,18 @@ export default function LogsTable({ logs, onSelect }: { logs: LogEntry[]; onSele
                 sx={{
                   color: (theme) => theme.palette.text.primary,
                   fontSize: '0.85rem',
-                  maxWidth: 280,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
+                  maxWidth: compact ? 620 : 280,
                   padding: '10px 12px',
                 }}
               >
-                {row.message}
+                <Typography variant="body2" sx={{ fontFamily: compact ? 'monospace' : 'inherit', whiteSpace: compact ? 'normal' : 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {compact
+                    ? highlightText(
+                        `{ "level": "${row.level.toLowerCase()}", "service": "${row.service}", "msg": "${row.message}", "traceId": "${row.metadata?.traceId ?? '-'}" }`,
+                        query
+                      )
+                    : highlightText(row.message, query)}
+                </Typography>
               </TableCell>
             </TableRow>
           ))}
@@ -156,3 +199,7 @@ export default function LogsTable({ logs, onSelect }: { logs: LogEntry[]; onSele
     </TableContainer>
   );
 }
+
+const LogsTable = memo(LogsTableComponent);
+
+export default LogsTable;
