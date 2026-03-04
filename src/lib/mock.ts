@@ -223,7 +223,8 @@ const createTraceSpan = (
   duration: number,
   startTime: number,
   parentSpanId?: string,
-  status: 'ok' | 'error' | 'slow' = 'ok'
+  status: 'ok' | 'error' | 'slow' = 'ok',
+  logs?: TraceSpan['logs']
 ): TraceSpan => ({
   id,
   traceId: 'trace-001-001',
@@ -238,6 +239,7 @@ const createTraceSpan = (
     'http.url': `/api/${operation}`,
     'http.status_code': status === 'error' ? 500 : 200,
   },
+  logs,
 });
 
 export const mockTraces: Trace[] = [
@@ -250,14 +252,68 @@ export const mockTraces: Trace[] = [
     status: 'slow',
     status_code: 200,
     spans: [
-      createTraceSpan('span-1', 'web-request', 'api-gateway', 520, Date.now() - 120000),
+      createTraceSpan('span-1', 'web-request', 'api-gateway', 520, Date.now() - 120000, undefined, 'ok', [
+        {
+          timestamp: Date.now() - 119998,
+          fields: {
+            event: 'HTTP request received',
+            level: 'info',
+            method: 'POST',
+            path: '/api/checkout',
+          },
+        },
+        {
+          timestamp: Date.now() - 119650,
+          fields: {
+            event: 'Calling downstream services',
+            level: 'info',
+            services: 'inventory,payments,notifications',
+          },
+        },
+      ]),
       createTraceSpan('span-2', 'validate-cart', 'checkout', 45, Date.now() - 119980, 'span-1'),
       createTraceSpan('span-3', 'fetch-inventory', 'inventory', 200, Date.now() - 119930, 'span-1', 'slow'),
       createTraceSpan('span-3-1', 'redis-get', 'redis', 50, Date.now() - 119920, 'span-3'),
-      createTraceSpan('span-3-2', 'db-query', 'db', 140, Date.now() - 119870, 'span-3', 'slow'),
+      createTraceSpan('span-3-2', 'db-query', 'db', 140, Date.now() - 119870, 'span-3', 'slow', [
+        {
+          timestamp: Date.now() - 119840,
+          fields: {
+            event: 'Slow query detected',
+            level: 'warn',
+            sql: 'SELECT * FROM inventory WHERE product_id IN (...)',
+            duration_ms: 140,
+          },
+        },
+      ]),
       createTraceSpan('span-4', 'charge-payment', 'payments', 250, Date.now() - 119730, 'span-1', 'slow'),
-      createTraceSpan('span-4-1', 'call-stripe', 'stripe-gateway', 230, Date.now() - 119720, 'span-4', 'slow'),
-      createTraceSpan('span-5', 'send-confirmation', 'notifications', 25, Date.now() - 119480, 'span-1'),
+      createTraceSpan('span-4-1', 'call-stripe', 'stripe-gateway', 230, Date.now() - 119720, 'span-4', 'slow', [
+        {
+          timestamp: Date.now() - 119700,
+          fields: {
+            event: 'Stripe API request started',
+            level: 'info',
+            endpoint: '/v1/charges',
+          },
+        },
+        {
+          timestamp: Date.now() - 119505,
+          fields: {
+            event: 'Stripe API response delayed',
+            level: 'warn',
+            latency_ms: 230,
+          },
+        },
+      ]),
+      createTraceSpan('span-5', 'send-confirmation', 'notifications', 25, Date.now() - 119480, 'span-1', 'ok', [
+        {
+          timestamp: Date.now() - 119465,
+          fields: {
+            event: 'Confirmation enqueued',
+            level: 'info',
+            provider: 'email',
+          },
+        },
+      ]),
     ],
   },
   {

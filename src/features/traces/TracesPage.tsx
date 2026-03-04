@@ -1,151 +1,237 @@
 'use client';
 
-import { useState } from 'react';
+import Link from 'next/link';
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Box,
-  Card,
-  CardContent,
-  Grid,
+  Button,
+  Checkbox,
+  Chip,
+  FormControl,
+  MenuItem,
+  Paper,
+  Select,
+  SelectChangeEvent,
+  Stack,
   Typography,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemText,
-  Divider,
+  useTheme,
 } from '@mui/material';
 import { apiClient } from '@/lib/apiClient';
+import { formatTimestamp } from '@/lib/formatters';
+
+type SortKey = 'recent' | 'duration';
 
 export default function TracesPage() {
+  const theme = useTheme();
   const { data: traces = [] } = useQuery({ queryKey: ['traces'], queryFn: apiClient.getTraces });
-  const [selectedTraceId, setSelectedTraceId] = useState<string | null>(traces[0]?.id ?? null);
+  const [sortKey, setSortKey] = useState<SortKey>('recent');
 
-  const selected = traces.find((trace) => trace.id === selectedTraceId) ?? traces[0];
+  const sortedTraces = useMemo(() => {
+    const cloned = [...traces];
+    if (sortKey === 'duration') {
+      return cloned.sort((a, b) => b.duration - a.duration);
+    }
+    return cloned.sort((a, b) => b.startTime - a.startTime);
+  }, [traces, sortKey]);
+
+  const minStart = useMemo(() => Math.min(...sortedTraces.map((trace) => trace.startTime)), [sortedTraces]);
+  const maxStart = useMemo(() => Math.max(...sortedTraces.map((trace) => trace.startTime)), [sortedTraces]);
+  const minDuration = useMemo(() => Math.min(...sortedTraces.map((trace) => trace.duration)), [sortedTraces]);
+  const maxDuration = useMemo(() => Math.max(...sortedTraces.map((trace) => trace.duration)), [sortedTraces]);
+
+  const handleSortChange = (event: SelectChangeEvent<SortKey>) => {
+    setSortKey(event.target.value as SortKey);
+  };
+
+  const getStatusColor = (statusCode?: number) => {
+    if (!statusCode) return theme.palette.text.secondary;
+    if (statusCode >= 500) return theme.palette.error.main;
+    if (statusCode >= 400) return theme.palette.warning.main;
+    if (statusCode >= 300) return theme.palette.warning.light;
+    return theme.palette.success.main;
+  };
+
+  if (sortedTraces.length === 0) {
+    return (
+      <Box>
+        <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
+          Traces
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          No traces found.
+        </Typography>
+      </Box>
+    );
+  }
+
+  const timeRange = Math.max(maxStart - minStart, 1);
+  const durationRange = Math.max(maxDuration - minDuration, 1);
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 1.5, sm: 2, md: 3 } }}>
-      <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+      <Typography variant="h4" sx={{ fontWeight: 700 }}>
         Traces
       </Typography>
 
-      <Grid container spacing={2}>
-        {/* Trace List */}
-        <Grid item xs={12} md={3}>
-          <Card sx={{ bgcolor: (theme) => theme.palette.background.paper, border: '1px solid', borderColor: (theme) => theme.palette.divider }}>
-            <CardContent>
-              <Typography
-                variant="subtitle1"
+      <Paper
+        variant="outlined"
+        sx={{
+          p: { xs: 1.5, md: 2 },
+          borderColor: 'divider',
+          bgcolor: 'background.paper',
+        }}
+      >
+        <Box
+          sx={{
+            position: 'relative',
+            height: 220,
+            border: '1px solid',
+            borderColor: 'divider',
+            borderRadius: 1,
+            bgcolor: 'background.default',
+            overflow: 'hidden',
+          }}
+        >
+          <Typography variant="caption" sx={{ position: 'absolute', left: 8, top: 8, color: 'text.secondary' }}>
+            Duration
+          </Typography>
+          <Typography variant="caption" sx={{ position: 'absolute', right: 8, bottom: 8, color: 'text.secondary' }}>
+            Time
+          </Typography>
+          {sortedTraces.map((trace) => {
+            const x = ((trace.startTime - minStart) / timeRange) * 92 + 4;
+            const y = 92 - ((trace.duration - minDuration) / durationRange) * 70;
+            const size = 6 + ((trace.duration - minDuration) / durationRange) * 18;
+
+            return (
+              <Box
+                key={`dot-${trace.id}`}
                 sx={{
-                  fontWeight: 600,
-                  mb: 2,
-                  color: (theme) => theme.palette.text.primary,
+                  position: 'absolute',
+                  left: `${x}%`,
+                  top: `${y}%`,
+                  width: size,
+                  height: size,
+                  borderRadius: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  bgcolor: getStatusColor(trace.status_code),
+                  opacity: 0.8,
+                }}
+              />
+            );
+          })}
+        </Box>
+      </Paper>
+
+      <Paper variant="outlined" sx={{ borderColor: 'divider', bgcolor: 'background.paper' }}>
+        <Stack
+          direction={{ xs: 'column', md: 'row' }}
+          justifyContent="space-between"
+          alignItems={{ xs: 'flex-start', md: 'center' }}
+          gap={1.5}
+          sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}
+        >
+          <Typography variant="h5" sx={{ fontWeight: 700 }}>
+            {sortedTraces.length} Traces
+          </Typography>
+          <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap">
+            <Typography variant="body2" color="text.secondary">
+              Sort:
+            </Typography>
+            <FormControl size="small" sx={{ minWidth: 140 }}>
+              <Select value={sortKey} onChange={handleSortChange}>
+                <MenuItem value="recent">Most Recent</MenuItem>
+                <MenuItem value="duration">Longest Duration</MenuItem>
+              </Select>
+            </FormControl>
+            <Button variant="outlined" size="small">
+              Download Results
+            </Button>
+            <Button variant="outlined" size="small">
+              Deep Dependency Graph
+            </Button>
+          </Stack>
+        </Stack>
+
+        <Box sx={{ p: 2, bgcolor: 'action.hover', borderBottom: '1px solid', borderColor: 'divider' }}>
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+            Compare traces by selecting result items
+          </Typography>
+        </Box>
+
+        <Stack sx={{ p: 1.5 }} gap={1.5}>
+          {sortedTraces.map((trace) => {
+            const serviceCounts = trace.spans.reduce<Record<string, number>>((accumulator, span) => {
+              accumulator[span.service] = (accumulator[span.service] ?? 0) + 1;
+              return accumulator;
+            }, {});
+
+            const errorCount = trace.spans.filter((span) => span.status === 'error').length;
+            const topServices = Object.entries(serviceCounts)
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 5);
+
+            return (
+              <Paper
+                key={trace.id}
+                component={Link}
+                href={`/traces/${trace.id}`}
+                variant="outlined"
+                sx={{
+                  textDecoration: 'none',
+                  color: 'inherit',
+                  borderColor: 'divider',
+                  overflow: 'hidden',
+                  '&:hover': {
+                    borderColor: 'primary.main',
+                    bgcolor: 'action.hover',
+                  },
                 }}
               >
-                Trace List
-              </Typography>
-              <List sx={{ p: 0 }}>
-                {traces.map((trace, index) => (
-                  <Box key={trace.id}>
-                    <ListItemButton
-                      selected={selectedTraceId === trace.id}
-                      onClick={() => setSelectedTraceId(trace.id)}
-                      sx={{
-                        borderRadius: 1,
-                        mb: 0.5,
-                        bgcolor:
-                          selectedTraceId === trace.id
-                            ? (theme) => theme.palette.primary.main + '20'
-                            : 'transparent',
-                        color:
-                          selectedTraceId === trace.id
-                            ? (theme) => theme.palette.text.primary
-                            : (theme) => theme.palette.text.secondary,
-                        '&:hover': {
-                          bgcolor: (theme) => theme.palette.action.hover,
-                        },
-                      }}
-                    >
-                      <ListItemText
-                        primary={
-                          <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                            {trace.operation} ({trace.duration}ms)
-                          </Typography>
-                        }
-                        secondary={
-                          <Typography variant="caption" sx={{ color: (theme) => theme.palette.text.secondary }}>
-                            {trace.service} · {trace.status}
-                          </Typography>
-                        }
-                      />
-                    </ListItemButton>
-                    {index < traces.length - 1 && (
-                      <Divider sx={{ borderColor: (theme) => theme.palette.divider, my: 0.5 }} />
-                    )}
-                  </Box>
-                ))}
-              </List>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        {/* Trace Details */}
-        <Grid item xs={12} md={9}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-            {/* Trace Detail Card */}
-            <Card sx={{ bgcolor: (theme) => theme.palette.background.paper, border: '1px solid', borderColor: (theme) => theme.palette.divider }}>
-              <CardContent>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
-                  Trace Detail
-                </Typography>
-                <Typography variant="body2" sx={{ color: (theme) => theme.palette.text.secondary, mb: 1 }}>
-                  Trace ID: {selected?.id}
-                </Typography>
-                <Typography variant="body2" sx={{ color: (theme) => theme.palette.text.secondary, mb: 1 }}>
-                  Service: {selected?.service}
-                </Typography>
-                <Typography variant="body2" sx={{ color: (theme) => theme.palette.text.secondary, mb: 1 }}>
-                  Operation: {selected?.operation}
-                </Typography>
-                <Typography variant="body2" sx={{ color: (theme) => theme.palette.text.secondary, mb: 2 }}>
-                  Duration: {selected?.duration}ms
-                </Typography>
-
-                <Box
-                  sx={{
-                    height: 180,
-                    border: '2px dashed',
-                    borderColor: (theme) => theme.palette.divider,
-                    borderRadius: 1,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    bgcolor: (theme) => theme.palette.action.hover,
-                  }}
-                >
-                  <Typography variant="body2" sx={{ color: (theme) => theme.palette.text.secondary }}>
-                    Span Tree Placeholder
+                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ px: 1, py: 1.5, bgcolor: 'action.hover' }}>
+                  <Stack direction="row" alignItems="center" gap={1}>
+                    <Checkbox size="small" sx={{ p: 0.5 }} />
+                    <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                      {trace.service}: {trace.operation}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {trace.id}
+                    </Typography>
+                  </Stack>
+                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                    {trace.duration.toFixed(2)}ms
                   </Typography>
-                </Box>
-              </CardContent>
-            </Card>
+                </Stack>
 
-            {/* Related Logs Card */}
-            <Card sx={{ bgcolor: (theme) => theme.palette.background.paper, border: '1px solid', borderColor: (theme) => theme.palette.divider }}>
-              <CardContent>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 2 }}>
-                  Related Logs
-                </Typography>
-                <Typography variant="body2" sx={{ color: (theme) => theme.palette.text.secondary, mb: 1 }}>
-                  [10:30:21] Payment provider timeout after 3 retries
-                </Typography>
-                <Typography variant="body2" sx={{ color: (theme) => theme.palette.text.secondary }}>
-                  [10:30:18] Upstream latency above threshold p95=1.4s
-                </Typography>
-              </CardContent>
-            </Card>
-          </Box>
-        </Grid>
-      </Grid>
+                <Stack
+                  direction={{ xs: 'column', md: 'row' }}
+                  justifyContent="space-between"
+                  alignItems={{ xs: 'flex-start', md: 'center' }}
+                  gap={1}
+                  sx={{ px: 1.5, py: 1.5 }}
+                >
+                  <Stack direction="row" gap={1} flexWrap="wrap" alignItems="center">
+                    <Chip size="small" label={`${trace.spans.length} Spans`} variant="outlined" />
+                    <Chip
+                      size="small"
+                      label={`${errorCount} Errors`}
+                      color={errorCount > 0 ? 'error' : 'success'}
+                      variant={errorCount > 0 ? 'filled' : 'outlined'}
+                    />
+                    {topServices.map(([service, count]) => (
+                      <Chip key={`${trace.id}-${service}`} size="small" label={`${service} (${count})`} variant="outlined" />
+                    ))}
+                  </Stack>
+                  <Typography variant="body2" color="text.secondary">
+                    {formatTimestamp(trace.startTime)}
+                  </Typography>
+                </Stack>
+              </Paper>
+            );
+          })}
+        </Stack>
+      </Paper>
     </Box>
   );
 }
