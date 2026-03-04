@@ -6,6 +6,8 @@ import { useQuery } from '@tanstack/react-query';
 import {
   Box,
   Button,
+  Card,
+  CardContent,
   Checkbox,
   Chip,
   Dialog,
@@ -20,6 +22,17 @@ import {
   Typography,
   useTheme,
 } from '@mui/material';
+import {
+  CartesianGrid,
+  Cell,
+  ResponsiveContainer,
+  Scatter,
+  ScatterChart,
+  Tooltip,
+  XAxis,
+  YAxis,
+  ZAxis,
+} from 'recharts';
 import { apiClient } from '@/lib/apiClient';
 import { formatTimestamp } from '@/lib/formatters';
 
@@ -42,11 +55,24 @@ export default function TracesPage() {
     }
     return cloned.sort((a, b) => b.startTime - a.startTime);
   }, [traces, sortKey]);
+  const hasTraces = sortedTraces.length > 0;
 
-  const minStart = useMemo(() => Math.min(...sortedTraces.map((trace) => trace.startTime)), [sortedTraces]);
-  const maxStart = useMemo(() => Math.max(...sortedTraces.map((trace) => trace.startTime)), [sortedTraces]);
-  const minDuration = useMemo(() => Math.min(...sortedTraces.map((trace) => trace.duration)), [sortedTraces]);
-  const maxDuration = useMemo(() => Math.max(...sortedTraces.map((trace) => trace.duration)), [sortedTraces]);
+  const minStart = useMemo(
+    () => (hasTraces ? Math.min(...sortedTraces.map((trace) => trace.startTime)) : 0),
+    [hasTraces, sortedTraces],
+  );
+  const maxStart = useMemo(
+    () => (hasTraces ? Math.max(...sortedTraces.map((trace) => trace.startTime)) : 0),
+    [hasTraces, sortedTraces],
+  );
+  const minDuration = useMemo(
+    () => (hasTraces ? Math.min(...sortedTraces.map((trace) => trace.duration)) : 0),
+    [hasTraces, sortedTraces],
+  );
+  const maxDuration = useMemo(
+    () => (hasTraces ? Math.max(...sortedTraces.map((trace) => trace.duration)) : 0),
+    [hasTraces, sortedTraces],
+  );
 
   const handleSortChange = (event: SelectChangeEvent<SortKey>) => {
     setSortKey(event.target.value as SortKey);
@@ -60,18 +86,18 @@ export default function TracesPage() {
     return theme.palette.success.main;
   };
 
-  if (sortedTraces.length === 0) {
-    return (
-      <Box>
-        <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
-          Traces
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          No traces found.
-        </Typography>
-      </Box>
-    );
-  }
+  const formatDurationUnit = (value: number) => {
+    if (value >= 1000) return `${(value / 1000).toFixed(2)}s`;
+    return `${value.toFixed(0)}ms`;
+  };
+
+  const formatTimeUnit = (value: number) => {
+    const date = new Date(value);
+    const hours = String(date.getUTCHours()).padStart(2, '0');
+    const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+    const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+    return `${hours}:${minutes}:${seconds}`;
+  };
 
   const timeRange = Math.max(maxStart - minStart, 1);
   const durationRange = Math.max(maxDuration - minDuration, 1);
@@ -200,25 +226,39 @@ export default function TracesPage() {
     URL.revokeObjectURL(url);
   };
 
-  const yAxisTicks = [1, 0.75, 0.5, 0.25, 0].map((ratio) => ({
-    ratio,
-    value: minDuration + durationRange * ratio,
-  }));
+  const chartData = useMemo(
+    () =>
+      sortedTraces.map((trace) => {
+        const normalized = (trace.duration - minDuration) / Math.max(durationRange, 1);
+        const errorSpanCount = trace.spans.filter((span) => span.status === 'error').length;
+        return {
+          id: trace.id,
+          service: trace.service,
+          operation: trace.operation,
+          startTime: trace.startTime,
+          duration: trace.duration,
+          size: 40 + normalized * 200,
+          spanCount: trace.spans.length,
+          errorSpanCount,
+          statusCode: trace.status_code,
+          color: getStatusColor(trace.status_code),
+        };
+      }),
+    [durationRange, getStatusColor, minDuration, sortedTraces],
+  );
 
-  const xAxisTicks = [0, 0.33, 0.66, 1].map((ratio) => ({
-    ratio,
-    value: new Date(minStart + timeRange * ratio),
-  }));
-
-  const getDotMeta = (trace: (typeof sortedTraces)[number]) => {
-    const x = ((trace.startTime - minStart) / timeRange) * 92 + 4;
-    const y = 92 - ((trace.duration - minDuration) / durationRange) * 70;
-    const size = 6 + ((trace.duration - minDuration) / durationRange) * 18;
-
-    return { x, y, size };
-  };
-
-  const hoveredMeta = hoveredTrace ? getDotMeta(hoveredTrace) : null;
+  if (!hasTraces) {
+    return (
+      <Box>
+        <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
+          Traces
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          No traces found.
+        </Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 1.5, sm: 2, md: 3 } }}>
@@ -234,140 +274,126 @@ export default function TracesPage() {
           bgcolor: 'background.paper',
         }}
       >
-        <Box
-          sx={{
-            position: 'relative',
-            height: 220,
-            border: '1px solid',
-            borderColor: 'divider',
-            borderRadius: 1,
-            bgcolor: 'background.default',
-            overflow: 'visible',
-          }}
-        >
-          <Typography variant="caption" sx={{ position: 'absolute', left: 8, top: 8, color: 'text.secondary' }}>
-            Duration
-          </Typography>
-          <Typography variant="caption" sx={{ position: 'absolute', right: 8, bottom: 8, color: 'text.secondary' }}>
-            Time
-          </Typography>
-
-          {yAxisTicks.map((tick) => (
-            <Box
-              key={`y-${tick.ratio}`}
-              sx={{
-                position: 'absolute',
-                left: '4%',
-                right: '4%',
-                top: `${92 - tick.ratio * 70}%`,
-                borderTop: '1px dashed',
-                borderColor: 'divider',
-                opacity: 0.45,
-                zIndex: 0,
-              }}
-            >
-              <Typography
-                variant="caption"
-                sx={{
-                  position: 'absolute',
-                  left: '-2px',
-                  top: -8,
-                  transform: 'translateX(-100%)',
-                  color: 'text.secondary',
-                  fontSize: '0.64rem',
-                }}
-              >
-                {tick.value.toFixed(0)}ms
-              </Typography>
-            </Box>
-          ))}
-
-          {xAxisTicks.map((tick, idx) => (
-            <Box
-              key={`x-${tick.ratio}`}
-              sx={{
-                position: 'absolute',
-                left: `${tick.ratio * 92 + 4}%`,
-                top: '22%',
-                bottom: '8%',
-                borderLeft: '1px dashed',
-                borderColor: 'divider',
-                opacity: 0.35,
-                zIndex: 0,
-              }}
-            >
-              <Typography
-                variant="caption"
-                sx={{
-                  position: 'absolute',
-                  bottom: -18,
-                  left: idx === 0 ? 0 : '50%',
-                  transform: idx === 0 ? 'translateX(0)' : 'translateX(-50%)',
-                  color: 'text.secondary',
-                  fontSize: '0.64rem',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {tick.value.toLocaleTimeString()}
-              </Typography>
-            </Box>
-          ))}
-
-          {hoveredTrace && hoveredMeta && (
-            <Paper
-              elevation={3}
-              sx={{
-                position: 'absolute',
-                left: `${hoveredMeta.x}%`,
-                top: `clamp(8px, calc(${hoveredMeta.y}% - 56px), 170px)`,
-                transform: 'translateX(-50%)',
-                px: 1,
-                py: 0.75,
-                zIndex: 3,
-                pointerEvents: 'none',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              <Typography variant="caption" sx={{ display: 'block', fontWeight: 700 }}>
-                {hoveredTrace.service}: {hoveredTrace.operation}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {hoveredTrace.duration.toFixed(2)}ms · {formatTimestamp(hoveredTrace.startTime)}
-              </Typography>
-            </Paper>
-          )}
-
-          {sortedTraces.map((trace) => {
-            const { x, y, size } = getDotMeta(trace);
-            const isSelected = selectedTraceId === trace.id;
-            const isDimmed = selectedTraceId !== null && !isSelected;
-
-            return (
-              <Box
-                key={`dot-${trace.id}`}
-                onMouseEnter={() => setHoveredTraceId(trace.id)}
+        <Card variant="outlined" sx={{ borderColor: 'divider', bgcolor: 'background.default' }}>
+          <CardContent sx={{ p: { xs: 1, md: 1.5 }, height: 250 }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <ScatterChart
+                margin={{ top: 10, right: 18, bottom: 16, left: 8 }}
                 onMouseLeave={() => setHoveredTraceId(null)}
-                onClick={() =>
-                  setSelectedTraceId((prev) => (prev === trace.id ? null : trace.id))
-                }
-                sx={{
-                  position: 'absolute',
-                  left: `${x}%`,
-                  top: `${y}%`,
-                  width: size,
-                  height: size,
-                  borderRadius: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  bgcolor: getStatusColor(trace.status_code),
-                  opacity: isDimmed ? 0.35 : hoveredTraceId === trace.id || isSelected ? 1 : 0.8,
-                  outline: isSelected ? '2px solid rgba(255,255,255,0.75)' : 'none',
-                  cursor: 'pointer',
-                  transition: 'opacity 0.12s ease',
-                }}
-              />
-            );
-          })}
-        </Box>
+              >
+                <CartesianGrid stroke={theme.palette.divider} strokeDasharray="3 3" />
+                <XAxis
+                  type="number"
+                  dataKey="startTime"
+                  name="Time"
+                  domain={[minStart, maxStart]}
+                  tickFormatter={(value: number) => formatTimeUnit(value)}
+                  tick={{ fill: theme.palette.text.secondary, fontSize: 11 }}
+                  tickLine={false}
+                  axisLine={{ stroke: theme.palette.divider }}
+                  minTickGap={24}
+                />
+                <YAxis
+                  type="number"
+                  dataKey="duration"
+                  name="Duration"
+                  domain={[Math.max(0, minDuration * 0.9), maxDuration * 1.05]}
+                  tickFormatter={(value: number) => formatDurationUnit(value)}
+                  tick={{ fill: theme.palette.text.secondary, fontSize: 11 }}
+                  tickLine={false}
+                  axisLine={{ stroke: theme.palette.divider }}
+                  width={52}
+                />
+                <ZAxis type="number" dataKey="size" range={[30, 260]} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: theme.palette.background.paper,
+                    border: `1px solid ${theme.palette.divider}`,
+                    borderRadius: 8,
+                  }}
+                  content={(props) => {
+                    const payload = props?.payload as
+                      | Array<{
+                          payload?: {
+                            service?: string;
+                            operation?: string;
+                            startTime?: number;
+                            duration?: number;
+                            statusCode?: number;
+                            spanCount?: number;
+                            errorSpanCount?: number;
+                            id?: string;
+                          };
+                        }>
+                      | undefined;
+
+                    const item = payload?.[0]?.payload;
+                    if (!props?.active || !item) {
+                      return null;
+                    }
+
+                    return (
+                      <Box
+                        sx={{
+                          bgcolor: 'background.paper',
+                          border: '1px solid',
+                          borderColor: 'divider',
+                          borderRadius: 1,
+                          p: 1,
+                          minWidth: 210,
+                        }}
+                      >
+                        <Typography variant="caption" sx={{ fontWeight: 700, display: 'block' }}>
+                          {item.service}: {item.operation}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+                          {formatTimeUnit(item.startTime ?? 0)} · {item.id}
+                        </Typography>
+                        <Typography variant="caption" sx={{ display: 'block' }}>
+                          Duration: {formatDurationUnit(item.duration ?? 0)}
+                        </Typography>
+                        <Typography variant="caption" sx={{ display: 'block' }}>
+                          Status: {item.statusCode ?? '-'}
+                        </Typography>
+                        <Typography variant="caption" sx={{ display: 'block' }}>
+                          Spans: {item.spanCount ?? 0}
+                        </Typography>
+                        <Typography variant="caption" sx={{ display: 'block' }}>
+                          Error Spans: {item.errorSpanCount ?? 0}
+                        </Typography>
+                      </Box>
+                    );
+                  }}
+                />
+                <Scatter
+                  data={chartData}
+                  onMouseEnter={(point: { id?: string }) => setHoveredTraceId(point?.id ?? null)}
+                  onClick={(point: { id?: string }) => {
+                    const pointId = point?.id;
+                    if (!pointId) return;
+                    setSelectedTraceId((prev) => (prev === pointId ? null : pointId));
+                  }}
+                >
+                  {chartData.map((point) => {
+                    const isSelected = selectedTraceId === point.id;
+                    const isHovered = hoveredTraceId === point.id;
+                    const isDimmed = selectedTraceId !== null && !isSelected;
+                    return (
+                      <Cell
+                        key={`trace-cell-${point.id}`}
+                        fill={point.color}
+                        fillOpacity={isDimmed ? 0.28 : isHovered || isSelected ? 1 : 0.84}
+                        stroke={isSelected ? theme.palette.common.white : point.color}
+                        strokeWidth={isSelected ? 2 : 1}
+                        style={{ cursor: 'pointer' }}
+                      />
+                    );
+                  })}
+                </Scatter>
+              </ScatterChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
       </Paper>
 
       <Paper variant="outlined" sx={{ borderColor: 'divider', bgcolor: 'background.paper' }}>
