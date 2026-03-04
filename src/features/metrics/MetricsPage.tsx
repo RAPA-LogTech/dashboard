@@ -216,9 +216,11 @@ function TimeSeriesPanel({
                     borderRadius: 8,
                   }}
                   labelStyle={{ color: theme.palette.text.secondary }}
-                  formatter={(value: number, key: string) => {
-                    const series = seriesList.find((item) => item.id === key);
-                    return [`${formatMetricValue(value, series?.unit ?? '')} ${series?.unit ?? ''}`, series?.name ?? key];
+                  formatter={(value: number | undefined, name: string | undefined) => {
+                    const metricKey = name ?? '';
+                    const series = seriesList.find((item) => item.id === metricKey);
+                    const normalized = typeof value === 'number' ? value : Number(value ?? 0);
+                    return [`${formatMetricValue(normalized, series?.unit ?? '')} ${series?.unit ?? ''}`, series?.name ?? metricKey];
                   }}
                 />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
@@ -233,6 +235,7 @@ function TimeSeriesPanel({
                     strokeWidth={2}
                     dot={false}
                     activeDot={{ r: 3 }}
+                    isAnimationActive={false}
                   />
                 ))}
               </AreaChart>
@@ -260,9 +263,11 @@ function TimeSeriesPanel({
                     borderRadius: 8,
                   }}
                   labelStyle={{ color: theme.palette.text.secondary }}
-                  formatter={(value: number, key: string) => {
-                    const series = seriesList.find((item) => item.id === key);
-                    return [`${formatMetricValue(value, series?.unit ?? '')} ${series?.unit ?? ''}`, series?.name ?? key];
+                  formatter={(value: number | undefined, name: string | undefined) => {
+                    const metricKey = name ?? '';
+                    const series = seriesList.find((item) => item.id === metricKey);
+                    const normalized = typeof value === 'number' ? value : Number(value ?? 0);
+                    return [`${formatMetricValue(normalized, series?.unit ?? '')} ${series?.unit ?? ''}`, series?.name ?? metricKey];
                   }}
                 />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
@@ -276,6 +281,7 @@ function TimeSeriesPanel({
                     strokeWidth={2}
                     dot={false}
                     activeDot={{ r: 3 }}
+                    isAnimationActive={false}
                   />
                 ))}
               </LineChart>
