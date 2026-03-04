@@ -62,6 +62,13 @@ export default function Sidebar({
 }: SidebarProps) {
   const pathname = usePathname();
 
+  const isItemActive = (href: string) => {
+    if (href === '/') {
+      return pathname === '/';
+    }
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
+
   const sidebarContent = (
     <>
 
@@ -85,7 +92,7 @@ export default function Sidebar({
             <List sx={{ py: 0 }}>
               {group.items.map((item) => {
                 const Icon = item.icon;
-                const isActive = pathname === item.href;
+                const isActive = isItemActive(item.href);
                 return (
                   <Link
                     key={item.href}

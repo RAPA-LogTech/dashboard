@@ -58,6 +58,7 @@ const buildSpanRows = (spans: TraceSpan[]): SpanRow[] => {
 export default function TracesDetailPage({ traceId }: { traceId: string }) {
   const theme = useTheme();
   const [showRelatedLogs, setShowRelatedLogs] = useState(false);
+  const [hoveredSpanId, setHoveredSpanId] = useState<string | null>(null);
   const { data: traces = [], isLoading } = useQuery({
     queryKey: ['traces'],
     queryFn: apiClient.getTraces,
@@ -84,8 +85,6 @@ export default function TracesDetailPage({ traceId }: { traceId: string }) {
     if (!trace) return 1;
     return Math.max(maxEnd - minStart, trace.duration, 1);
   }, [maxEnd, minStart, trace]);
-
-  const scaleStops = useMemo(() => [0, 0.25, 0.5, 0.75, 1], []);
 
   const relatedLogs = useMemo(() => {
     if (!trace) return [];
@@ -123,6 +122,43 @@ export default function TracesDetailPage({ traceId }: { traceId: string }) {
   }
 
   const errorCount = trace.spans.filter((span) => span.status === 'error').length;
+
+  const formatDuration = (value: number) => (value >= 1000 ? `${(value / 1000).toFixed(2)}s` : `${value.toFixed(2)}ms`);
+
+  const timelineData = rows.map(({ span, depth }) => {
+    const startOffset = Math.max(span.startTime - minStart, 0);
+    const endOffset = startOffset + span.duration;
+    const barColor =
+      span.status === 'error'
+        ? theme.palette.error.main
+        : span.status === 'slow'
+          ? theme.palette.warning.main
+          : theme.palette.success.main;
+
+    return {
+      id: span.id,
+      label: `${'  '.repeat(depth)}${span.service} / ${span.operation}`,
+      service: span.service,
+      operation: span.operation,
+      depth,
+      status: span.status,
+      absoluteStart: span.startTime,
+      absoluteEnd: span.startTime + span.duration,
+      startOffset,
+      endOffset,
+      duration: span.duration,
+      durationLabel: formatDuration(span.duration),
+      color: barColor,
+    };
+  });
+
+  const timelineTicks = [0, 0.25, 0.5, 0.75, 1].map((ratio) => {
+    const value = totalDuration * ratio;
+    return {
+      ratio,
+      label: formatDuration(value),
+    };
+  });
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -163,12 +199,34 @@ export default function TracesDetailPage({ traceId }: { traceId: string }) {
           </Stack>
         </Box>
 
-        <Box sx={{ position: 'relative', px: 2, py: 1.5, borderBottom: '1px solid', borderColor: 'divider' }}>
-          <Box sx={{ position: 'relative', height: 28, borderTop: '2px solid', borderColor: 'divider' }}>
-            {scaleStops.map((stop) => (
-              <Box key={stop} sx={{ position: 'absolute', left: `${stop * 100}%`, top: -8, transform: 'translateX(-50%)' }}>
-                <Typography variant="caption" color="text.secondary">
-                  {(totalDuration * stop).toFixed(2)}ms
+        <Box
+          sx={{
+            px: 1.5,
+            py: 1,
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+            bgcolor: 'action.hover',
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', md: '360px 1fr' },
+            columnGap: 1,
+            alignItems: 'end',
+          }}
+        >
+          <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary' }}>
+            Service & Operation
+          </Typography>
+          <Box sx={{ position: 'relative', height: 22, display: { xs: 'none', md: 'block' } }}>
+            {timelineTicks.map((tick) => (
+              <Box
+                key={`tick-head-${tick.ratio}`}
+                sx={{
+                  position: 'absolute',
+                  left: `${tick.ratio * 100}%`,
+                  transform: 'translateX(-50%)',
+                }}
+              >
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontSize: '0.68rem' }}>
+                  {tick.label}
                 </Typography>
               </Box>
             ))}
@@ -176,64 +234,98 @@ export default function TracesDetailPage({ traceId }: { traceId: string }) {
         </Box>
 
         <Box sx={{ maxHeight: '65vh', overflowY: 'auto' }}>
-          {rows.map(({ span, depth }) => {
-            const startOffset = ((span.startTime - minStart) / totalDuration) * 100;
-            const widthPct = Math.max((span.duration / totalDuration) * 100, 0.8);
-            const barColor =
-              span.status === 'error'
+          {timelineData.map((entry) => {
+            const leftPct = (entry.startOffset / totalDuration) * 100;
+            const widthPct = Math.max((entry.duration / totalDuration) * 100, 0.9);
+            const isHovered = hoveredSpanId === entry.id;
+            const isDimmed = hoveredSpanId !== null && !isHovered;
+            const statusColor =
+              entry.status === 'error'
                 ? theme.palette.error.main
-                : span.status === 'slow'
+                : entry.status === 'slow'
                   ? theme.palette.warning.main
                   : theme.palette.success.main;
 
             return (
               <Box
-                key={span.id}
+                key={entry.id}
+                onMouseEnter={() => setHoveredSpanId(entry.id)}
+                onMouseLeave={() => setHoveredSpanId(null)}
                 sx={{
                   display: 'grid',
                   gridTemplateColumns: { xs: '1fr', md: '360px 1fr' },
                   gap: 1,
                   alignItems: 'center',
-                  px: 2,
-                  py: 1.2,
+                  px: 1.5,
+                  py: 0.75,
                   borderBottom: '1px solid',
                   borderColor: 'divider',
+                  bgcolor: isHovered ? 'action.hover' : 'transparent',
+                  opacity: isDimmed ? 0.38 : 1,
+                  transition: 'background-color 120ms ease, opacity 120ms ease',
                 }}
               >
-                <Stack direction="row" alignItems="center" sx={{ pl: `${depth * 16}px` }} gap={1}>
-                  <Box sx={{ width: 3, height: 16, bgcolor: barColor, borderRadius: 1 }} />
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                    {span.service}
+                <Stack direction="row" alignItems="center" gap={1} sx={{ pl: `${entry.depth * 14}px` }}>
+                  <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: statusColor, flexShrink: 0 }} />
+                  <Typography variant="body2" sx={{ fontWeight: isHovered ? 700 : 600, minWidth: 72 }}>
+                    {entry.service}
                   </Typography>
-                  <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {span.operation}
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: isHovered ? 700 : 400 }}
+                  >
+                    {entry.operation}
                   </Typography>
                 </Stack>
 
-                <Box sx={{ position: 'relative', height: 20, borderLeft: '1px solid', borderColor: 'divider' }}>
+                <Box
+                  sx={{
+                    height: 24,
+                    display: { xs: 'none', md: 'grid' },
+                    gridTemplateColumns: '1fr 74px',
+                    alignItems: 'center',
+                    columnGap: 0.75,
+                  }}
+                >
                   <Box
                     sx={{
-                      position: 'absolute',
-                      left: `${startOffset}%`,
-                      width: `${Math.min(widthPct, 100 - startOffset)}%`,
-                      minWidth: 6,
-                      height: 14,
-                      top: 3,
-                      borderRadius: 0.75,
-                      bgcolor: barColor,
+                      backgroundImage:
+                        'linear-gradient(to right, transparent 24.9%, rgba(120,120,120,0.25) 25%, transparent 25.1%, transparent 49.9%, rgba(120,120,120,0.25) 50%, transparent 50.1%, transparent 74.9%, rgba(120,120,120,0.25) 75%, transparent 75.1%)',
+                      height: 24,
+                      position: 'relative',
                     }}
-                  />
+                    title={`${entry.service} ${entry.operation} | start ${formatDuration(entry.startOffset)} | end ${formatDuration(entry.endOffset)} | duration ${entry.durationLabel}`}
+                  >
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        left: `${leftPct}%`,
+                        width: `${Math.min(widthPct, 100 - leftPct)}%`,
+                        minWidth: 6,
+                        top: 6,
+                        height: 10,
+                        borderRadius: 0.75,
+                        bgcolor: entry.color,
+                        boxShadow: isHovered
+                          ? `0 0 0 1px ${theme.palette.common.white} inset, 0 0 0 1px ${entry.color}`
+                          : '0 0 0 1px rgba(0,0,0,0.15) inset',
+                        filter: isHovered ? 'brightness(1.08)' : 'none',
+                        transition: 'filter 120ms ease, box-shadow 120ms ease',
+                      }}
+                    />
+                  </Box>
                   <Typography
                     variant="caption"
                     sx={{
-                      position: 'absolute',
-                      left: `${Math.min(startOffset + widthPct + 0.6, 96)}%`,
-                      top: 1,
                       color: 'text.secondary',
+                      fontSize: '0.68rem',
+                      textAlign: 'right',
                       whiteSpace: 'nowrap',
+                      fontWeight: isHovered ? 700 : 400,
                     }}
                   >
-                    {span.duration.toFixed(2)}ms
+                    {entry.durationLabel}
                   </Typography>
                 </Box>
               </Box>
