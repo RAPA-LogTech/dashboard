@@ -121,6 +121,7 @@ export const getAppTheme = (mode: PaletteMode) => {
               main: '#9333ea',
               light: '#c084fc',
               dark: '#7e22ce',
+              contrastText: '#ffffff',
             },
             secondary: {
               main: '#22D3EE',
@@ -168,6 +169,7 @@ export const getAppTheme = (mode: PaletteMode) => {
               main: '#9333ea',
               light: '#a855f7',
               dark: '#7e22ce',
+              contrastText: '#ffffff',
             },
             secondary: {
               main: '#22D3EE',
@@ -265,9 +267,6 @@ export const getAppTheme = (mode: PaletteMode) => {
       },
       MuiButton: {
         styleOverrides: {
-          root: ({ theme }) => ({
-            color: theme.palette.text.primary,
-          }),
           outlined: ({ theme }) => ({
             borderColor: theme.palette.divider,
             color: theme.palette.text.secondary,
@@ -276,6 +275,9 @@ export const getAppTheme = (mode: PaletteMode) => {
               borderColor: theme.palette.primary.main,
             },
           }),
+          containedPrimary: {
+            color: '#ffffff',
+          },
         },
       },
     },
