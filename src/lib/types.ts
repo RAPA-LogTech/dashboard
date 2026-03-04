@@ -4,6 +4,7 @@ export type LogLevel = 'INFO' | 'WARN' | 'ERROR' | 'DEBUG';
 export type Environment = 'prod' | 'staging' | 'dev';
 export type TraceStatus = 'ok' | 'error' | 'slow';
 export type AlertSeverity = 'info' | 'warning' | 'error' | 'critical';
+export type NotificationSeverity = 'info' | 'warning' | 'error' | 'critical';
 
 // ============ Logs ============
 
@@ -146,6 +147,17 @@ export type AlertEvent = {
   timestamp: string;
   status: 'firing' | 'resolved';
   resolvedAt?: string;
+};
+
+export type NotificationItem = {
+  id: string;
+  title: string;
+  message: string;
+  severity: NotificationSeverity;
+  timestamp: string;
+  read: boolean;
+  source?: string;
+  route?: string;
 };
 
 // ============ Integrations ============

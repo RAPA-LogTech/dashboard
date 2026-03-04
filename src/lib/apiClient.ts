@@ -6,7 +6,7 @@ import {
   mockMetricSeries,
   mockTraces,
 } from './mock';
-import { Dashboard, LogEntry, MetricSeries, Trace } from './types';
+import { Dashboard, LogEntry, MetricSeries, NotificationItem, Trace } from './types';
 
 const simulateLatency = async () => {
   await new Promise((resolve) => setTimeout(resolve, 150));
@@ -36,6 +36,22 @@ export const apiClient = {
   async getAiMessages() {
     await simulateLatency();
     return mockAiConversation;
+  },
+  async getNotifications(): Promise<NotificationItem[]> {
+    await simulateLatency();
+
+    try {
+      const response = await fetch('/data/notifications-example.json');
+
+      if (!response.ok) {
+        return [];
+      }
+
+      const data = (await response.json()) as NotificationItem[];
+      return data;
+    } catch {
+      return [];
+    }
   },
   async sendSlackTestMessage(payload: { channel: string; text: string }) {
     await simulateLatency();
