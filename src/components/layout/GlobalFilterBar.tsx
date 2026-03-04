@@ -39,7 +39,7 @@ export const GlobalFilterBar: React.FC<GlobalFilterBarProps> = ({
 }) => {
   const theme = useTheme();
   const isXs = useMediaQuery(theme.breakpoints.only('xs'));
-  const isMobileView = useMediaQuery(theme.breakpoints.down('sm'));
+  const isMobileView = useMediaQuery(theme.breakpoints.down('md'));
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [tagInput, setTagInput] = useState('');
@@ -504,8 +504,8 @@ export const GlobalFilterBar: React.FC<GlobalFilterBarProps> = ({
           py: 2.5,
           borderBottom: '1px solid',
           borderColor: (theme) => theme.palette.divider,
-          maxHeight: { xs: '55vh', sm: '50vh', md: 'unset' },
-          overflowY: { xs: 'auto', sm: 'auto', md: 'visible' },
+          maxHeight: { xs: '55vh', sm: '50vh', md: 'unset', lg: '48vh', xl: 'unset' },
+          overflowY: { xs: 'auto', sm: 'auto', md: 'visible', lg: 'auto', xl: 'visible' },
         }}
       >
         <Box
@@ -514,7 +514,7 @@ export const GlobalFilterBar: React.FC<GlobalFilterBarProps> = ({
             alignItems: 'center',
             justifyContent: 'space-between',
             mb: 2,
-            position: { xs: 'sticky', sm: 'sticky', md: 'static' },
+            position: { xs: 'sticky', sm: 'sticky', md: 'static', lg: 'sticky', xl: 'static' },
             top: 0,
             zIndex: 1,
             bgcolor: (theme) => theme.palette.background.paper,

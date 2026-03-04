@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import {
   AppBar,
   Toolbar,
@@ -88,7 +89,17 @@ export default function TopBar({ onMenuClick, showMenuButton = false }: TopBarPr
         )}
 
         {/* Left */}
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <Box
+          component={Link}
+          href="/"
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            textDecoration: 'none',
+            cursor: 'pointer',
+          }}
+        >
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center' }}>
             <Typography 
               variant="body2" 
