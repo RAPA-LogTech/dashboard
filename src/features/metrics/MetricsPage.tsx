@@ -10,6 +10,7 @@ import {
   Divider,
   Grid,
   InputAdornment,
+  Skeleton,
   Stack,
   TextField,
   Typography,
@@ -29,6 +30,7 @@ import {
 } from 'recharts';
 import type { MetricSeries } from '@/lib/types';
 import { apiClient } from '@/lib/apiClient';
+import NoDataState from '@/components/common/NoDataState';
 
 type MetricStreamPayload = {
   cursor: number;
@@ -355,10 +357,15 @@ function TimeSeriesPanel({
 export default function MetricsPage() {
   const theme = useTheme();
 
-  const { data: metrics = [] } = useQuery({
+  const {
+    data: metricsData,
+    isLoading: isMetricsLoading,
+    isFetched: isMetricsFetched,
+  } = useQuery({
     queryKey: ['metrics'],
     queryFn: apiClient.getMetrics,
   });
+  const metrics = metricsData ?? [];
 
   const [liveMetrics, setLiveMetrics] = useState<MetricSeries[]>([]);
   const [isLiveEnabled, setIsLiveEnabled] = useState(true);
@@ -640,74 +647,141 @@ export default function MetricsPage() {
         }}
       />
 
-      <Grid container spacing={2}>
-        {kpis.map((kpi) => (
-          <Grid item xs={12} sm={6} md={3} key={kpi.label}>
-            <Card sx={{ border: '1px solid', borderColor: 'divider' }}>
-              <CardContent sx={{ p: 2 }}>
-                <Typography
-                  variant="caption"
-                  sx={{
-                    fontWeight: 600,
-                    textTransform: 'uppercase',
-                    color: 'text.secondary',
-                    display: 'block',
-                  }}
-                >
-                  {kpi.label}
-                </Typography>
-                <Typography variant="h5" sx={{ fontWeight: 'bold', mt: 1 }}>
-                  {formatMetricValue(kpi.value, kpi.unit)} {kpi.unit}
-                </Typography>
-                {kpi.series ? (
-                  <Box sx={{ mt: 1.5 }}>
-                    <MiniSparkline series={kpi.series} color={kpi.color} />
-                  </Box>
-                ) : null}
-              </CardContent>
-            </Card>
+      {isMetricsLoading ? (
+        <>
+          <Grid container spacing={2}>
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Grid item xs={12} sm={6} md={3} key={`metrics-kpi-skeleton-${index}`}>
+                <Card sx={{ border: '1px solid', borderColor: 'divider' }}>
+                  <CardContent sx={{ p: 2 }}>
+                    <Skeleton variant="text" width="45%" height={18} />
+                    <Skeleton variant="text" width="70%" height={36} sx={{ mt: 0.5 }} />
+                    <Skeleton variant="rounded" height={32} sx={{ mt: 1.25 }} />
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
           </Grid>
-        ))}
-      </Grid>
 
-      <Grid container spacing={2}>
-        <Grid item xs={12} lg={8}>
-          <TimeSeriesPanel title="Request Rate by Service" seriesList={requestSeries} chartType="area" xAxisWithSeconds niceYAxis />
-        </Grid>
-        <Grid item xs={12} lg={4}>
-          <Card sx={{ border: '1px solid', borderColor: 'divider' }}>
-            <CardContent sx={{ p: 2 }}>
-              <Typography variant="subtitle2" sx={{ color: 'text.secondary', mb: 1.5 }}>
-                Live Metric Values
-              </Typography>
-              <Stack divider={<Divider flexItem />} spacing={1}>
-                {totalPanels.map((series) => {
-                  const stats = getSeriesStats(series);
-                  return (
-                    <Stack key={series.id} direction="row" alignItems="center" justifyContent="space-between" sx={{ py: 0.75 }}>
-                      <Typography variant="caption" sx={{ color: 'text.secondary', pr: 1 }}>
-                        {series.name}
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {formatMetricValue(stats.last, series.unit)} {series.unit}
-                      </Typography>
-                    </Stack>
-                  );
-                })}
-              </Stack>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <TimeSeriesPanel title="Error Rate Trend" seriesList={errorSeries} xAxisWithSeconds niceYAxis />
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <TimeSeriesPanel title="Latency p95 (ms)" seriesList={latencySeries} xAxisWithSeconds niceYAxis />
-        </Grid>
-        <Grid item xs={12}>
-          <TimeSeriesPanel title="Resource Usage (CPU/Memory)" seriesList={resourceSeries} xAxisWithSeconds niceYAxis />
-        </Grid>
-      </Grid>
+          <Grid container spacing={2}>
+            <Grid item xs={12} lg={8}>
+              <Card sx={{ border: '1px solid', borderColor: 'divider' }}>
+                <CardContent sx={{ p: 2 }}>
+                  <Skeleton variant="text" width="40%" height={22} />
+                  <Skeleton variant="rounded" height={220} sx={{ mt: 1 }} />
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} lg={4}>
+              <Card sx={{ border: '1px solid', borderColor: 'divider' }}>
+                <CardContent sx={{ p: 2 }}>
+                  <Skeleton variant="text" width="50%" height={20} sx={{ mb: 1 }} />
+                  {Array.from({ length: 5 }).map((_, index) => (
+                    <Skeleton key={`metrics-side-skeleton-${index}`} variant="text" height={28} />
+                  ))}
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Card sx={{ border: '1px solid', borderColor: 'divider' }}>
+                <CardContent sx={{ p: 2 }}>
+                  <Skeleton variant="text" width="45%" height={22} />
+                  <Skeleton variant="rounded" height={220} sx={{ mt: 1 }} />
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <Card sx={{ border: '1px solid', borderColor: 'divider' }}>
+                <CardContent sx={{ p: 2 }}>
+                  <Skeleton variant="text" width="45%" height={22} />
+                  <Skeleton variant="rounded" height={220} sx={{ mt: 1 }} />
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12}>
+              <Card sx={{ border: '1px solid', borderColor: 'divider' }}>
+                <CardContent sx={{ p: 2 }}>
+                  <Skeleton variant="text" width="35%" height={22} />
+                  <Skeleton variant="rounded" height={220} sx={{ mt: 1 }} />
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
+        </>
+      ) : isMetricsFetched && metricSeries.length === 0 ? (
+        <NoDataState title="No metrics data" description="메트릭 데이터를 찾지 못했습니다." />
+      ) : (
+        <>
+          <Grid container spacing={2}>
+            {kpis.map((kpi) => (
+              <Grid item xs={12} sm={6} md={3} key={kpi.label}>
+                <Card sx={{ border: '1px solid', borderColor: 'divider' }}>
+                  <CardContent sx={{ p: 2 }}>
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        color: 'text.secondary',
+                        display: 'block',
+                      }}
+                    >
+                      {kpi.label}
+                    </Typography>
+                    <Typography variant="h5" sx={{ fontWeight: 'bold', mt: 1 }}>
+                      {formatMetricValue(kpi.value, kpi.unit)} {kpi.unit}
+                    </Typography>
+                    {kpi.series ? (
+                      <Box sx={{ mt: 1.5 }}>
+                        <MiniSparkline series={kpi.series} color={kpi.color} />
+                      </Box>
+                    ) : null}
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+
+          <Grid container spacing={2}>
+            <Grid item xs={12} lg={8}>
+              <TimeSeriesPanel title="Request Rate by Service" seriesList={requestSeries} chartType="area" xAxisWithSeconds niceYAxis />
+            </Grid>
+            <Grid item xs={12} lg={4}>
+              <Card sx={{ border: '1px solid', borderColor: 'divider' }}>
+                <CardContent sx={{ p: 2 }}>
+                  <Typography variant="subtitle2" sx={{ color: 'text.secondary', mb: 1.5 }}>
+                    Live Metric Values
+                  </Typography>
+                  <Stack divider={<Divider flexItem />} spacing={1}>
+                    {totalPanels.map((series) => {
+                      const stats = getSeriesStats(series);
+                      return (
+                        <Stack key={series.id} direction="row" alignItems="center" justifyContent="space-between" sx={{ py: 0.75 }}>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', pr: 1 }}>
+                            {series.name}
+                          </Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            {formatMetricValue(stats.last, series.unit)} {series.unit}
+                          </Typography>
+                        </Stack>
+                      );
+                    })}
+                  </Stack>
+                </CardContent>
+              </Card>
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TimeSeriesPanel title="Error Rate Trend" seriesList={errorSeries} xAxisWithSeconds niceYAxis />
+            </Grid>
+            <Grid item xs={12} md={6}>
+              <TimeSeriesPanel title="Latency p95 (ms)" seriesList={latencySeries} xAxisWithSeconds niceYAxis />
+            </Grid>
+            <Grid item xs={12}>
+              <TimeSeriesPanel title="Resource Usage (CPU/Memory)" seriesList={resourceSeries} xAxisWithSeconds niceYAxis />
+            </Grid>
+          </Grid>
+        </>
+      )}
     </Box>
   );
 }

@@ -18,6 +18,7 @@ import {
   Drawer,
   Typography,
   IconButton,
+  Skeleton,
   ToggleButton,
   ToggleButtonGroup,
 } from '@mui/material';
@@ -27,6 +28,7 @@ import { apiClient } from '@/lib/apiClient';
 import { formatDateTime } from '@/lib/formatters';
 import LogsTable from '@/components/tables/LogsTable';
 import { LogEntry } from '@/lib/types';
+import NoDataState from '@/components/common/NoDataState';
 
 type LogStreamPayload = {
   cursor: number;
@@ -283,7 +285,12 @@ const LogsHistogram = memo(function LogsHistogram({
 
 export default function LogsPage() {
   const PAGE_SIZE = 60;
-  const { data: queryLogsData, refetch } = useQuery({ queryKey: ['logs'], queryFn: apiClient.getLogs });
+  const {
+    data: queryLogsData,
+    refetch,
+    isLoading: isLogsLoading,
+    isFetched: isLogsFetched,
+  } = useQuery({ queryKey: ['logs'], queryFn: apiClient.getLogs });
   const queryLogs = queryLogsData ?? [];
   const [liveLogs, setLiveLogs] = useState<LogEntry[]>([]);
   const [isLiveEnabled, setIsLiveEnabled] = useState(true);
@@ -656,6 +663,34 @@ export default function LogsPage() {
     setVisibleCount(PAGE_SIZE);
   }, [query, timeRange, isLuceneMode, activeTab, selectedBucketKey]);
 
+  if (isLogsLoading) {
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 1.5, sm: 2, md: 3 } }}>
+        <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+          Logs
+        </Typography>
+        <Paper variant="outlined" sx={{ borderColor: 'divider', bgcolor: 'background.paper', p: 1.5 }}>
+          <Stack gap={1.25}>
+            <Skeleton variant="rounded" height={40} />
+            <Skeleton variant="rounded" height={220} />
+            <Skeleton variant="rounded" height={260} />
+          </Stack>
+        </Paper>
+      </Box>
+    );
+  }
+
+  if (isLogsFetched && logs.length === 0) {
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 1.5, sm: 2, md: 3 } }}>
+        <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
+          Logs
+        </Typography>
+        <NoDataState title="No logs data" description="로그 데이터를 찾지 못했습니다." />
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 1.5, sm: 2, md: 3 } }}>
       <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
@@ -801,48 +836,54 @@ export default function LogsPage() {
               {filtered.length.toLocaleString()} hits
             </Typography>
 
-            {selectedBucketKey !== null && (
-              <Stack direction="row" justifyContent="flex-end" sx={{ mb: 1 }}>
-                <Button size="small" variant="text" onClick={() => setSelectedBucketKey(null)}>
-                  Clear bucket filter
-                </Button>
-              </Stack>
+            {filtered.length === 0 ? (
+              <NoDataState title="No matching logs" description="조건에 맞는 로그를 찾지 못했습니다." />
+            ) : (
+              <>
+                {selectedBucketKey !== null && (
+                  <Stack direction="row" justifyContent="flex-end" sx={{ mb: 1 }}>
+                    <Button size="small" variant="text" onClick={() => setSelectedBucketKey(null)}>
+                      Clear bucket filter
+                    </Button>
+                  </Stack>
+                )}
+
+                <LogsHistogram
+                  histogramData={histogramData}
+                  maxBucket={maxBucket}
+                  selectedBucketKey={selectedBucketKey}
+                  onSelectBucket={(bucketKey) =>
+                    setSelectedBucketKey((prev) => (prev === bucketKey ? null : bucketKey))
+                  }
+                />
+
+                <ToggleButtonGroup
+                  exclusive
+                  value={activeTab}
+                  onChange={(_, value) => value && setActiveTab(value)}
+                  size="small"
+                  sx={{ mb: 1.5 }}
+                >
+                  <ToggleButton value="logs">Logs</ToggleButton>
+                  <ToggleButton value="patterns">Patterns</ToggleButton>
+                  <ToggleButton value="exceptions">Exceptions ({exceptionCount})</ToggleButton>
+                </ToggleButtonGroup>
+
+                <Box
+                  onScroll={handleTableScroll}
+                  sx={{
+                    maxHeight: 420,
+                    overflowY: 'auto',
+                  }}
+                >
+                  <LogsTable logs={visibleLogs} onSelect={setSelectedLog} query={query} compact />
+                </Box>
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                  Showing {visibleLogs.length.toLocaleString()} of {filtered.length.toLocaleString()} logs
+                  {hasMoreLogs ? ' · Scroll down to load more' : ''}
+                </Typography>
+              </>
             )}
-
-            <LogsHistogram
-              histogramData={histogramData}
-              maxBucket={maxBucket}
-              selectedBucketKey={selectedBucketKey}
-              onSelectBucket={(bucketKey) =>
-                setSelectedBucketKey((prev) => (prev === bucketKey ? null : bucketKey))
-              }
-            />
-
-            <ToggleButtonGroup
-              exclusive
-              value={activeTab}
-              onChange={(_, value) => value && setActiveTab(value)}
-              size="small"
-              sx={{ mb: 1.5 }}
-            >
-              <ToggleButton value="logs">Logs</ToggleButton>
-              <ToggleButton value="patterns">Patterns</ToggleButton>
-              <ToggleButton value="exceptions">Exceptions ({exceptionCount})</ToggleButton>
-            </ToggleButtonGroup>
-
-            <Box
-              onScroll={handleTableScroll}
-              sx={{
-                maxHeight: 420,
-                overflowY: 'auto',
-              }}
-            >
-              <LogsTable logs={visibleLogs} onSelect={setSelectedLog} query={query} compact />
-            </Box>
-            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-              Showing {visibleLogs.length.toLocaleString()} of {filtered.length.toLocaleString()} logs
-              {hasMoreLogs ? ' · Scroll down to load more' : ''}
-            </Typography>
           </Box>
         </Box>
       </Paper>

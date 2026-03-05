@@ -18,6 +18,7 @@ import {
   Paper,
   Select,
   SelectChangeEvent,
+  Skeleton,
   Stack,
   Typography,
   useTheme,
@@ -36,6 +37,7 @@ import {
 import { apiClient } from '@/lib/apiClient';
 import { formatTimestamp } from '@/lib/formatters';
 import type { Trace } from '@/lib/types';
+import NoDataState from '@/components/common/NoDataState';
 
 type SortKey = 'recent' | 'duration';
 
@@ -48,7 +50,12 @@ type TraceStreamPayload = {
 export default function TracesPage() {
   const PAGE_SIZE = 30;
   const theme = useTheme();
-  const { data: traces = [] } = useQuery({ queryKey: ['traces'], queryFn: apiClient.getTraces });
+  const {
+    data: tracesData,
+    isLoading: isTracesLoading,
+    isFetched: isTracesFetched,
+  } = useQuery({ queryKey: ['traces'], queryFn: apiClient.getTraces });
+  const traces = tracesData ?? [];
   const [liveTraces, setLiveTraces] = useState<Trace[]>([]);
   const [isLiveEnabled, setIsLiveEnabled] = useState(true);
   const [streamStatus, setStreamStatus] = useState<'connecting' | 'live' | 'reconnecting' | 'offline'>('connecting');
@@ -420,15 +427,36 @@ export default function TracesPage() {
     ? [scatterDomain.yMin, scatterDomain.yMax]
     : [Math.max(0, minDuration * 0.9), maxDuration * 1.05];
 
-  if (!hasTraces) {
+  if (isTracesLoading) {
+    return (
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 1.5, sm: 2, md: 3 } }}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1.5}>
+          <Typography variant="h4" sx={{ fontWeight: 700 }}>
+            Traces
+          </Typography>
+          <Skeleton variant="rounded" width={80} height={28} />
+        </Stack>
+        <Paper variant="outlined" sx={{ p: { xs: 1.5, md: 2 }, borderColor: 'divider', bgcolor: 'background.paper' }}>
+          <Skeleton variant="rounded" height={250} />
+        </Paper>
+        <Paper variant="outlined" sx={{ borderColor: 'divider', bgcolor: 'background.paper', p: 2 }}>
+          <Stack gap={1.25}>
+            {Array.from({ length: 4 }).map((_, index) => (
+              <Skeleton key={`trace-list-skeleton-${index}`} variant="rounded" height={88} />
+            ))}
+          </Stack>
+        </Paper>
+      </Box>
+    );
+  }
+
+  if (isTracesFetched && !hasTraces) {
     return (
       <Box>
         <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
           Traces
         </Typography>
-        <Typography variant="body2" color="text.secondary">
-          No traces found.
-        </Typography>
+        <NoDataState title="No traces data" description="트레이스 데이터를 찾지 못했습니다." />
       </Box>
     );
   }
