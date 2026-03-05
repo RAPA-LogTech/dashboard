@@ -66,20 +66,15 @@ export default function TracesPage() {
   } | null>(null);
 
   useEffect(() => {
-    setLiveTraces(traces);
+    setLiveTraces((prev) => (prev.length === 0 ? traces : prev));
 
-    if (traces.length > 0) {
+    if (isLiveEnabled) {
       setStreamStatus('connecting');
     }
-  }, [traces]);
+  }, [traces, isLiveEnabled]);
 
   useEffect(() => {
     if (!isLiveEnabled) {
-      setStreamStatus('offline');
-      return;
-    }
-
-    if (traces.length === 0) {
       setStreamStatus('offline');
       return;
     }
@@ -177,7 +172,7 @@ export default function TracesPage() {
       }
       eventSource?.close();
     };
-  }, [traces.length, isLiveEnabled]);
+  }, [isLiveEnabled]);
 
   const traceSeries = useMemo(() => (liveTraces.length > 0 ? liveTraces : traces), [liveTraces, traces]);
 

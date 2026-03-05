@@ -301,12 +301,12 @@ export default function LogsPage() {
   useEffect(() => {
     if (!queryLogsData) return;
 
-    setLiveLogs(queryLogs);
+    setLiveLogs((prev) => (prev.length === 0 ? queryLogs : prev));
 
-    if (queryLogs.length > 0) {
+    if (isLiveEnabled) {
       setStreamStatus('connecting');
     }
-  }, [queryLogsData]);
+  }, [queryLogsData, queryLogs, isLiveEnabled]);
 
   useEffect(() => {
     if (!isLiveEnabled) {

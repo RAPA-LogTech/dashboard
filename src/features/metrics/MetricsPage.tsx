@@ -366,20 +366,15 @@ export default function MetricsPage() {
   const lastMetricCursorRef = useRef(0);
 
   useEffect(() => {
-    setLiveMetrics(metrics);
+    setLiveMetrics((prev) => (prev.length === 0 ? metrics : prev));
 
-    if (metrics.length > 0) {
+    if (isLiveEnabled) {
       setStreamStatus('connecting');
     }
-  }, [metrics]);
+  }, [metrics, isLiveEnabled]);
 
   useEffect(() => {
     if (!isLiveEnabled) {
-      setStreamStatus('offline');
-      return;
-    }
-
-    if (metrics.length === 0) {
       setStreamStatus('offline');
       return;
     }
@@ -487,7 +482,7 @@ export default function MetricsPage() {
       }
       eventSource?.close();
     };
-  }, [metrics.length, isLiveEnabled]);
+  }, [isLiveEnabled]);
 
   const metricSeries = useMemo(() => (liveMetrics.length > 0 ? liveMetrics : metrics), [liveMetrics, metrics]);
 

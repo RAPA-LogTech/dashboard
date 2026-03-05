@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import Link from 'next/link';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Box,
@@ -60,6 +61,14 @@ export default function NotificationsPage() {
     return '/';
   };
 
+  useEffect(() => {
+    const routes = new Set<string>();
+    notifications.forEach((notification) => {
+      routes.add(resolveNotificationRoute(notification));
+    });
+    routes.forEach((route) => router.prefetch(route));
+  }, [notifications, router]);
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 1.5, sm: 2, md: 3 }, height: '100%', minHeight: 0 }}>
       <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ sm: 'center' }} gap={1}>
@@ -113,7 +122,12 @@ export default function NotificationsPage() {
               return (
                 <Box key={notification.id}>
                   <Box
+                    component={Link}
+                    href={resolvedRoute}
                     sx={{
+                      display: 'block',
+                      textDecoration: 'none',
+                      color: 'inherit',
                       p: 2,
                       bgcolor: isUnread ? 'transparent' : 'action.hover',
                       cursor: 'pointer',
@@ -123,7 +137,6 @@ export default function NotificationsPage() {
                     }}
                     onClick={() => {
                       setReadMap((prev) => ({ ...prev, [notification.id]: true }));
-                      router.push(resolvedRoute);
                     }}
                   >
                     <Stack direction="row" spacing={1.25} alignItems="flex-start">
@@ -176,6 +189,7 @@ export default function NotificationsPage() {
                             variant="text"
                             sx={{ textTransform: 'none', px: 0.5, minWidth: 'auto' }}
                             onClick={(event) => {
+                              event.preventDefault();
                               event.stopPropagation();
                               setReadMap((prev) => ({ ...prev, [notification.id]: true }));
                               router.push(resolvedRoute);

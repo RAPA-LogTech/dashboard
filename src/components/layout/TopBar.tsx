@@ -85,16 +85,12 @@ export default function TopBar({ onMenuClick, showMenuButton = false }: TopBarPr
     setNotificationAnchorEl(null);
   };
 
-  const handleNotificationItemClick = (notificationId: string, route?: string) => {
+  const handleNotificationItemClick = (notificationId: string) => {
     setNotificationReadMap((prev) => ({
       ...prev,
       [notificationId]: true,
     }));
     handleNotificationMenuClose();
-
-    if (route) {
-      router.push(route);
-    }
   };
 
   const resolveNotificationRoute = (notification: { route?: string; source?: string }) => {
@@ -110,6 +106,14 @@ export default function TopBar({ onMenuClick, showMenuButton = false }: TopBarPr
 
     return '/';
   };
+
+  React.useEffect(() => {
+    const routes = new Set<string>(['/notifications']);
+    notifications.forEach((notification) => {
+      routes.add(resolveNotificationRoute(notification));
+    });
+    routes.forEach((route) => router.prefetch(route));
+  }, [notifications, router]);
 
   return (
     <AppBar
@@ -292,8 +296,13 @@ export default function TopBar({ onMenuClick, showMenuButton = false }: TopBarPr
                   return (
                     <Box
                       key={notification.id}
-                      onClick={() => handleNotificationItemClick(notification.id, resolvedRoute)}
+                      component={Link}
+                      href={resolvedRoute}
+                      onClick={() => handleNotificationItemClick(notification.id)}
                       sx={{
+                        display: 'block',
+                        textDecoration: 'none',
+                        color: 'inherit',
                         p: 1.25,
                         borderRadius: 1,
                         mb: 0.75,
