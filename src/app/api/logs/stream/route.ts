@@ -1,4 +1,4 @@
-import { getLatestLogTs, subscribeLogs } from '@/lib/live/logsLive';
+import { getLatestLogCursor, subscribeLogs } from '@/lib/live/logsLive';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -33,7 +33,7 @@ export async function GET(request: Request) {
         send('log', payload);
       });
 
-      controller.enqueue(encoder.encode(`: latest-ts ${getLatestLogTs()}\n\n`));
+      controller.enqueue(encoder.encode(`: latest-cursor ${getLatestLogCursor()}\n\n`));
 
       heartbeat = setInterval(() => {
         controller.enqueue(encoder.encode(`: ping ${Date.now()}\n\n`));

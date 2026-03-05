@@ -31,6 +31,7 @@ import type { MetricSeries } from '@/lib/types';
 import { apiClient } from '@/lib/apiClient';
 
 type MetricStreamPayload = {
+  cursor: number;
   ts: number;
   points: Array<{
     id: string;
@@ -362,15 +363,10 @@ export default function MetricsPage() {
   const [liveMetrics, setLiveMetrics] = useState<MetricSeries[]>([]);
   const [isLiveEnabled, setIsLiveEnabled] = useState(true);
   const [streamStatus, setStreamStatus] = useState<'connecting' | 'live' | 'reconnecting' | 'offline'>('connecting');
-  const lastMetricTsRef = useRef(0);
+  const lastMetricCursorRef = useRef(0);
 
   useEffect(() => {
     setLiveMetrics(metrics);
-    const latestFromQuery = metrics.reduce((maxTs, series) => {
-      const seriesLast = series.points[series.points.length - 1]?.ts ?? 0;
-      return Math.max(maxTs, seriesLast);
-    }, 0);
-    lastMetricTsRef.current = Math.max(lastMetricTsRef.current, latestFromQuery);
 
     if (metrics.length > 0) {
       setStreamStatus('connecting');
@@ -412,22 +408,34 @@ export default function MetricsPage() {
         }),
       );
 
-      lastMetricTsRef.current = Math.max(lastMetricTsRef.current, payload.ts);
+      lastMetricCursorRef.current = Math.max(lastMetricCursorRef.current, payload.cursor ?? 0);
     };
 
     const fetchBacklog = async () => {
+      let cursor = lastMetricCursorRef.current;
+      const limit = 200;
+
       try {
-        const response = await fetch(`/api/metrics/backlog?since=${lastMetricTsRef.current}`);
-        if (!response.ok) return;
+        for (let step = 0; step < 10; step += 1) {
+          const response = await fetch(`/api/metrics/backlog?cursor=${cursor}&limit=${limit}`);
+          if (!response.ok) return;
 
-        const data = (await response.json()) as {
-          events?: MetricStreamPayload[];
-          latestTs?: number;
-        };
+          const data = (await response.json()) as {
+            events?: MetricStreamPayload[];
+            nextCursor?: number;
+            hasMore?: boolean;
+            latestCursor?: number;
+          };
 
-        (data.events ?? []).forEach((event) => applyMetricPayload(event));
-        if (typeof data.latestTs === 'number') {
-          lastMetricTsRef.current = Math.max(lastMetricTsRef.current, data.latestTs);
+          (data.events ?? []).forEach((event) => applyMetricPayload(event));
+
+          cursor = Math.max(cursor, data.nextCursor ?? cursor);
+          lastMetricCursorRef.current = Math.max(
+            lastMetricCursorRef.current,
+            data.latestCursor ?? cursor,
+          );
+
+          if (!data.hasMore) break;
         }
       } catch {
         // ignore backlog fetch failure and continue with live stream

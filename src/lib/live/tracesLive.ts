@@ -2,6 +2,7 @@ import { mockTraces } from '@/lib/mock';
 import type { Trace, TraceSpan, TraceStatus } from '@/lib/types';
 
 export type TraceStreamPayload = {
+  cursor: number;
   ts: number;
   trace: Trace;
 };
@@ -13,6 +14,7 @@ const MAX_HISTORY = 300;
 let started = false;
 let timer: ReturnType<typeof setTimeout> | null = null;
 let sequence = 0;
+let cursor = 0;
 
 const pickRandom = <T,>(items: T[]): T => items[Math.floor(Math.random() * items.length)];
 
@@ -100,7 +102,9 @@ const publish = (payload: TraceStreamPayload) => {
 
 const emit = () => {
   sequence += 1;
+  cursor += 1;
   publish({
+    cursor,
     ts: Date.now(),
     trace: makeLiveTrace(mockTraces, sequence),
   });
@@ -123,12 +127,26 @@ export const subscribeTraces = (listener: (payload: TraceStreamPayload) => void)
   };
 };
 
-export const getTraceBacklog = (since: number) => {
+export const getTraceBacklogPage = (afterCursor: number, limit: number) => {
   ensureTracesProducer();
-  return history.filter((event) => event.ts > since);
+  const safeCursor = Number.isFinite(afterCursor) ? Math.max(0, Math.floor(afterCursor)) : 0;
+  const safeLimit = Number.isFinite(limit) ? Math.min(500, Math.max(1, Math.floor(limit))) : 200;
+
+  const events = history
+    .filter((event) => event.cursor > safeCursor)
+    .slice(0, safeLimit);
+  const nextCursor = events.length > 0 ? events[events.length - 1].cursor : safeCursor;
+  const latestCursor = history[history.length - 1]?.cursor ?? safeCursor;
+
+  return {
+    events,
+    nextCursor,
+    hasMore: latestCursor > nextCursor,
+    latestCursor,
+  };
 };
 
-export const getLatestTraceTs = () => {
+export const getLatestTraceCursor = () => {
   const last = history[history.length - 1];
-  return last?.ts ?? 0;
+  return last?.cursor ?? 0;
 };

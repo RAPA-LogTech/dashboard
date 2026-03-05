@@ -29,6 +29,7 @@ import LogsTable from '@/components/tables/LogsTable';
 import { LogEntry } from '@/lib/types';
 
 type LogStreamPayload = {
+  cursor: number;
   ts: number;
   log: LogEntry;
 };
@@ -299,7 +300,7 @@ export default function LogsPage() {
   const [liveLogs, setLiveLogs] = useState<LogEntry[]>([]);
   const [isLiveEnabled, setIsLiveEnabled] = useState(true);
   const [streamStatus, setStreamStatus] = useState<'connecting' | 'live' | 'reconnecting' | 'offline'>('connecting');
-  const lastLogTsRef = useRef(0);
+  const lastLogCursorRef = useRef(0);
   const [query, setQuery] = useState('');
   const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null);
   const [activeTab, setActiveTab] = useState<'logs' | 'patterns' | 'exceptions'>('logs');
@@ -311,11 +312,6 @@ export default function LogsPage() {
 
   useEffect(() => {
     setLiveLogs(queryLogs);
-    const latestFromQuery = queryLogs.reduce((maxTs, log) => {
-      const ts = new Date(log.timestamp).getTime();
-      return Number.isFinite(ts) ? Math.max(maxTs, ts) : maxTs;
-    }, 0);
-    lastLogTsRef.current = Math.max(lastLogTsRef.current, latestFromQuery);
 
     if (queryLogs.length > 0) {
       setStreamStatus('connecting');
@@ -342,22 +338,34 @@ export default function LogsPage() {
         return [payload.log, ...deduped].slice(0, MAX_LOGS);
       });
 
-      lastLogTsRef.current = Math.max(lastLogTsRef.current, payload.ts);
+      lastLogCursorRef.current = Math.max(lastLogCursorRef.current, payload.cursor ?? 0);
     };
 
     const fetchBacklog = async () => {
+      let cursor = lastLogCursorRef.current;
+      const limit = 300;
+
       try {
-        const response = await fetch(`/api/logs/backlog?since=${lastLogTsRef.current}`);
-        if (!response.ok) return;
+        for (let step = 0; step < 10; step += 1) {
+          const response = await fetch(`/api/logs/backlog?cursor=${cursor}&limit=${limit}`);
+          if (!response.ok) return;
 
-        const data = (await response.json()) as {
-          events?: LogStreamPayload[];
-          latestTs?: number;
-        };
+          const data = (await response.json()) as {
+            events?: LogStreamPayload[];
+            nextCursor?: number;
+            hasMore?: boolean;
+            latestCursor?: number;
+          };
 
-        (data.events ?? []).forEach((event) => applyLogPayload(event));
-        if (typeof data.latestTs === 'number') {
-          lastLogTsRef.current = Math.max(lastLogTsRef.current, data.latestTs);
+          (data.events ?? []).forEach((event) => applyLogPayload(event));
+
+          cursor = Math.max(cursor, data.nextCursor ?? cursor);
+          lastLogCursorRef.current = Math.max(
+            lastLogCursorRef.current,
+            data.latestCursor ?? cursor,
+          );
+
+          if (!data.hasMore) break;
         }
       } catch {
         // ignore backlog fetch failure and continue with live stream

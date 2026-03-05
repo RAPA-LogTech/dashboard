@@ -40,6 +40,7 @@ import type { Trace } from '@/lib/types';
 type SortKey = 'recent' | 'duration';
 
 type TraceStreamPayload = {
+  cursor: number;
   ts: number;
   trace: Trace;
 };
@@ -51,7 +52,7 @@ export default function TracesPage() {
   const [liveTraces, setLiveTraces] = useState<Trace[]>([]);
   const [isLiveEnabled, setIsLiveEnabled] = useState(true);
   const [streamStatus, setStreamStatus] = useState<'connecting' | 'live' | 'reconnecting' | 'offline'>('connecting');
-  const lastTraceTsRef = useRef(0);
+  const lastTraceCursorRef = useRef(0);
   const [sortKey, setSortKey] = useState<SortKey>('recent');
   const [hoveredTraceId, setHoveredTraceId] = useState<string | null>(null);
   const [selectedTraceId, setSelectedTraceId] = useState<string | null>(null);
@@ -66,8 +67,6 @@ export default function TracesPage() {
 
   useEffect(() => {
     setLiveTraces(traces);
-    const latestFromQuery = traces.reduce((maxTs, trace) => Math.max(maxTs, trace.startTime), 0);
-    lastTraceTsRef.current = Math.max(lastTraceTsRef.current, latestFromQuery);
 
     if (traces.length > 0) {
       setStreamStatus('connecting');
@@ -99,22 +98,34 @@ export default function TracesPage() {
         return [payload.trace, ...deduped].slice(0, MAX_TRACES);
       });
 
-      lastTraceTsRef.current = Math.max(lastTraceTsRef.current, payload.ts);
+      lastTraceCursorRef.current = Math.max(lastTraceCursorRef.current, payload.cursor ?? 0);
     };
 
     const fetchBacklog = async () => {
+      let cursor = lastTraceCursorRef.current;
+      const limit = 200;
+
       try {
-        const response = await fetch(`/api/traces/backlog?since=${lastTraceTsRef.current}`);
-        if (!response.ok) return;
+        for (let step = 0; step < 10; step += 1) {
+          const response = await fetch(`/api/traces/backlog?cursor=${cursor}&limit=${limit}`);
+          if (!response.ok) return;
 
-        const data = (await response.json()) as {
-          events?: TraceStreamPayload[];
-          latestTs?: number;
-        };
+          const data = (await response.json()) as {
+            events?: TraceStreamPayload[];
+            nextCursor?: number;
+            hasMore?: boolean;
+            latestCursor?: number;
+          };
 
-        (data.events ?? []).forEach((event) => applyTracePayload(event));
-        if (typeof data.latestTs === 'number') {
-          lastTraceTsRef.current = Math.max(lastTraceTsRef.current, data.latestTs);
+          (data.events ?? []).forEach((event) => applyTracePayload(event));
+
+          cursor = Math.max(cursor, data.nextCursor ?? cursor);
+          lastTraceCursorRef.current = Math.max(
+            lastTraceCursorRef.current,
+            data.latestCursor ?? cursor,
+          );
+
+          if (!data.hasMore) break;
         }
       } catch {
         // ignore backlog fetch failure and continue with live stream

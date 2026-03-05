@@ -7,6 +7,7 @@ type StreamPoint = {
 };
 
 export type MetricStreamPayload = {
+  cursor: number;
   ts: number;
   points: StreamPoint[];
 };
@@ -23,6 +24,7 @@ const history: MetricStreamPayload[] = [];
 const MAX_HISTORY = 400;
 let started = false;
 let timer: ReturnType<typeof setTimeout> | null = null;
+let cursor = 0;
 
 const clampByUnit = (value: number, unit: string) => {
   if (unit === '%') return Math.max(0, Math.min(100, value));
@@ -68,7 +70,8 @@ const emit = () => {
     return { id: series.id, ts, value: next };
   });
 
-  publish({ ts, points });
+  cursor += 1;
+  publish({ cursor, ts, points });
 
   const nextDelayMs = 4500 + Math.floor(Math.random() * 5500);
   timer = setTimeout(emit, nextDelayMs);
@@ -88,12 +91,26 @@ export const subscribeMetrics = (listener: (payload: MetricStreamPayload) => voi
   };
 };
 
-export const getMetricBacklog = (since: number) => {
+export const getMetricBacklogPage = (afterCursor: number, limit: number) => {
   ensureMetricsProducer();
-  return history.filter((event) => event.ts > since);
+  const safeCursor = Number.isFinite(afterCursor) ? Math.max(0, Math.floor(afterCursor)) : 0;
+  const safeLimit = Number.isFinite(limit) ? Math.min(500, Math.max(1, Math.floor(limit))) : 200;
+
+  const events = history
+    .filter((event) => event.cursor > safeCursor)
+    .slice(0, safeLimit);
+  const nextCursor = events.length > 0 ? events[events.length - 1].cursor : safeCursor;
+  const latestCursor = history[history.length - 1]?.cursor ?? safeCursor;
+
+  return {
+    events,
+    nextCursor,
+    hasMore: latestCursor > nextCursor,
+    latestCursor,
+  };
 };
 
-export const getLatestMetricTs = () => {
+export const getLatestMetricCursor = () => {
   const last = history[history.length - 1];
-  return last?.ts ?? 0;
+  return last?.cursor ?? 0;
 };

@@ -1,4 +1,4 @@
-import { getLatestTraceTs, subscribeTraces } from '@/lib/live/tracesLive';
+import { getLatestTraceCursor, subscribeTraces } from '@/lib/live/tracesLive';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -33,7 +33,7 @@ export async function GET(request: Request) {
         send('trace', payload);
       });
 
-      controller.enqueue(encoder.encode(`: latest-ts ${getLatestTraceTs()}\n\n`));
+      controller.enqueue(encoder.encode(`: latest-cursor ${getLatestTraceCursor()}\n\n`));
 
       heartbeat = setInterval(() => {
         controller.enqueue(encoder.encode(`: ping ${Date.now()}\n\n`));

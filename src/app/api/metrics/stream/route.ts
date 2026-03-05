@@ -1,4 +1,4 @@
-import { getLatestMetricTs, subscribeMetrics } from '@/lib/live/metricsLive';
+import { getLatestMetricCursor, subscribeMetrics } from '@/lib/live/metricsLive';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -33,7 +33,7 @@ export async function GET(request: Request) {
         send('metric', payload);
       });
 
-      controller.enqueue(encoder.encode(`: latest-ts ${getLatestMetricTs()}\n\n`));
+      controller.enqueue(encoder.encode(`: latest-cursor ${getLatestMetricCursor()}\n\n`));
       heartbeatTicker = setInterval(() => {
         controller.enqueue(encoder.encode(`: ping ${Date.now()}\n\n`));
       }, 15000);
