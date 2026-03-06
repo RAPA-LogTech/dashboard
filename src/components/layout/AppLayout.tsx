@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { Box, useTheme, useMediaQuery } from '@mui/material';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
@@ -18,11 +19,17 @@ const topBarHeight = 48;
 const aiDrawerWidth = 400;
 
 export default function AppLayout({ children }: AppLayoutProps) {
+  const pathname = usePathname();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const [filters, setFilters] = useState<GlobalFilterState>(defaultGlobalFilter);
   const [aiChatOpen, setAiChatOpen] = useState(false);
+
+  const showGlobalFilterBar = (
+    pathname === '/traces'
+    || pathname === '/metrics'
+  );
 
   const handleDrawerToggle = () => {
     setMobileDrawerOpen(!mobileDrawerOpen);
@@ -70,9 +77,6 @@ export default function AppLayout({ children }: AppLayoutProps) {
           overflow: 'hidden',
         }}
       >
-        {/* GlobalFilterBar - fixed height, flexible width */}
-        <GlobalFilterBar value={filters} onChange={setFilters} />
-
         {/* Scrollable Content - flexGrow fills remaining height */}
         <Box
           sx={{
@@ -95,6 +99,11 @@ export default function AppLayout({ children }: AppLayoutProps) {
               width: '100%',
             }}
           >
+            {showGlobalFilterBar ? (
+              <Box sx={{ mb: 2 }}>
+                <GlobalFilterBar value={filters} onChange={setFilters} />
+              </Box>
+            ) : null}
             {children}
           </Box>
         </Box>

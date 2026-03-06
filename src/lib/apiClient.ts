@@ -6,7 +6,7 @@ import {
   mockMetricSeries,
   mockTraces,
 } from './mock';
-import { Dashboard, LogEntry, MetricSeries, NotificationItem, Trace } from './types';
+import { Dashboard, LogEntry, MetricSeries, NotificationItem, RunbookItem, Trace } from './types';
 
 const simulateLatency = async () => {
   await new Promise((resolve) => setTimeout(resolve, 150));
@@ -60,6 +60,22 @@ export const apiClient = {
       }
 
       const data = (await response.json()) as NotificationItem[];
+      return data;
+    } catch {
+      return [];
+    }
+  },
+  async getRunbooks(): Promise<RunbookItem[]> {
+    await simulateLatency();
+
+    try {
+      const response = await fetch('/data/runbooks-example.json');
+
+      if (!response.ok) {
+        return [];
+      }
+
+      const data = (await response.json()) as RunbookItem[];
       return data;
     } catch {
       return [];

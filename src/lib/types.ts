@@ -160,6 +160,22 @@ export type NotificationItem = {
   route?: string;
 };
 
+export type RunbookSeverity = 'low' | 'medium' | 'high' | 'critical';
+
+export type RunbookItem = {
+  id: string;
+  title: string;
+  service: string;
+  severity: RunbookSeverity;
+  summary: string;
+  symptoms: string[];
+  steps: string[];
+  tags: string[];
+  owner: string;
+  enabled: boolean;
+  updatedAt: string;
+};
+
 // ============ Integrations ============
 
 export type IntegrationType = 'slack' | 'pagerduty' | 'webhook' | 'email' | 'datadog' | 'newrelic';

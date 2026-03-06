@@ -27,7 +27,9 @@ import { Bar, BarChart, CartesianGrid, Cell, Legend, ResponsiveContainer, Toolti
 import { apiClient } from '@/lib/apiClient';
 import { formatDateTime } from '@/lib/formatters';
 import LogsTable from '@/components/tables/LogsTable';
-import { LogEntry } from '@/lib/types';
+import GlobalFilterBar from '@/components/layout/GlobalFilterBar';
+import { defaultGlobalFilter } from '@/lib/mock';
+import { GlobalFilterState, LogEntry } from '@/lib/types';
 import NoDataState from '@/components/common/NoDataState';
 
 type LogStreamPayload = {
@@ -298,6 +300,7 @@ export default function LogsPage() {
   const lastLogCursorRef = useRef(0);
   const [query, setQuery] = useState('');
   const [selectedLog, setSelectedLog] = useState<LogEntry | null>(null);
+  const [globalFilters, setGlobalFilters] = useState<GlobalFilterState>(defaultGlobalFilter);
   const [activeTab, setActiveTab] = useState<'logs' | 'patterns' | 'exceptions'>('logs');
   const [isLuceneMode, setIsLuceneMode] = useState(true);
   const [timeRange, setTimeRange] = useState<'15m' | '1h' | '6h' | '24h' | 'all'>('15m');
@@ -779,6 +782,10 @@ export default function LogsPage() {
               </Stack>
             </Button>
           </Stack>
+
+          <Box sx={{ mt: 1 }}>
+            <GlobalFilterBar value={globalFilters} onChange={setGlobalFilters} />
+          </Box>
         </Box>
 
         <Box
