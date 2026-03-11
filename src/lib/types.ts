@@ -196,6 +196,26 @@ export type Integration = {
   lastTestStatus?: 'success' | 'failed';
 };
 
+export type SlackIntegrationStatus = {
+  oauthConfigured: boolean;
+  connected: boolean;
+  teamId?: string;
+  teamName?: string;
+  channelId?: string;
+  channelName?: string;
+  webhookUrlMasked?: string;
+  installedBy?: string;
+  installedAt?: string;
+  updatedAt?: string;
+  scopes: string[];
+};
+
+export type SlackTestMessageResponse = {
+  ok: boolean;
+  channel: string;
+  sentAt: string;
+};
+
 // ============ AI Chat ============
 
 export type AiMessageRole = 'user' | 'assistant' | 'system';

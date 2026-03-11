@@ -1,5 +1,67 @@
 # frontend
 
+## Slack 연동 설정
+
+이제 Integrations > Slack 화면은 OAuth 기반으로 동작합니다. 고객은 Connect Slack 버튼을 누른 뒤 Slack 권한 화면에서 허용만 하면 워크스페이스와 채널이 연결됩니다.
+
+서버에는 아래 환경 변수가 필요합니다.
+
+```bash
+SLACK_CLIENT_ID=...
+SLACK_CLIENT_SECRET=...
+SLACK_SIGNING_SECRET=...
+SLACK_REDIRECT_URI=https://free-olives-hunt.loca.lt/api/integrations/slack/callback
+SLACK_BOT_SCOPES=incoming-webhook,chat:write
+```
+
+Slack 앱 설정에서 위 callback URL을 OAuth Redirect URL로 등록해야 합니다.
+
+### 로컬 임시 테스트 (ngrok)
+
+로컬에서는 Slack OAuth callback에 HTTPS가 필요하므로 ngrok 터널을 사용합니다.
+
+1. 로컬 서버 실행
+
+```bash
+pnpm dev
+```
+
+2. ngrok 실행
+
+```bash
+ngrok http 3000
+```
+
+3. 발급된 HTTPS 도메인으로 redirect URI 구성
+
+```bash
+SLACK_REDIRECT_URI=https://<ngrok-domain>/api/integrations/slack/callback
+```
+
+4. Slack App > OAuth & Permissions > Redirect URLs에 같은 URI 등록
+5. 서버 재시작 후 Integrations > Slack에서 Connect Slack 테스트
+
+주의:
+- ngrok 무료 플랜은 재실행 시 도메인이 바뀔 수 있습니다.
+- 도메인이 바뀌면 .env.local의 SLACK_REDIRECT_URI와 Slack Redirect URLs를 함께 갱신해야 합니다.
+
+### 배포 후 전환 체크리스트
+
+배포 도메인이 준비되면 로컬 ngrok URI 대신 운영 URI로 전환합니다.
+
+1. 운영 callback URI 확정
+
+```text
+https://<prod-domain>/api/integrations/slack/callback
+```
+
+2. 서버 환경 변수의 SLACK_REDIRECT_URI를 운영 URI로 변경
+3. Slack App Redirect URLs에 운영 URI 추가/교체
+4. 운영 서버 재배포
+5. Connect Slack 재인증 테스트(정상 리다이렉트, 연결 상태, 테스트 메시지 전송)
+
+참고: 현재 구현은 데모/개발용으로 서버 메모리에 설치 정보를 저장하므로 서버 재시작 시 초기화됩니다. 운영용으로는 DB 또는 시크릿 스토리지에 고객별 설치 정보를 저장해야 합니다.
+
 
 > Observability Dashboard에서의 3가지 핵심 작업 흐름과 실제 데이터 예시
 

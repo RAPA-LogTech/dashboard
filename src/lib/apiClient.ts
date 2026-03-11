@@ -6,10 +6,28 @@ import {
   mockMetricSeries,
   mockTraces,
 } from './mock';
-import { Dashboard, LogEntry, MetricSeries, NotificationItem, RunbookItem, Trace } from './types';
+import {
+  Dashboard,
+  LogEntry,
+  MetricSeries,
+  NotificationItem,
+  RunbookItem,
+  SlackIntegrationStatus,
+  SlackTestMessageResponse,
+  Trace,
+} from './types';
 
 const simulateLatency = async () => {
   await new Promise((resolve) => setTimeout(resolve, 150));
+};
+
+const readErrorMessage = async (response: Response, fallback: string) => {
+  try {
+    const errorBody = (await response.json()) as { message?: string };
+    return errorBody.message ?? fallback;
+  } catch {
+    return fallback;
+  }
 };
 
 export const apiClient = {
@@ -81,12 +99,42 @@ export const apiClient = {
       return [];
     }
   },
-  async sendSlackTestMessage(payload: { channel: string; text: string }) {
-    await simulateLatency();
-    return {
-      ok: true,
-      ...payload,
-      sentAt: new Date().toISOString(),
+  async sendSlackTestMessage(payload: { text: string }) {
+    const response = await fetch('/api/integrations/slack/test', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      throw new Error(await readErrorMessage(response, 'Slack 테스트 메시지 전송에 실패했습니다.'));
+    }
+
+    return (await response.json()) as SlackTestMessageResponse;
+  },
+  async getSlackIntegration() {
+    const response = await fetch('/api/integrations/slack');
+
+    if (!response.ok) {
+      throw new Error(await readErrorMessage(response, 'Slack 연동 정보 조회에 실패했습니다.'));
+    }
+
+    return (await response.json()) as SlackIntegrationStatus;
+  },
+  async disconnectSlackIntegration() {
+    const response = await fetch('/api/integrations/slack', {
+      method: 'DELETE',
+    });
+
+    if (!response.ok) {
+      throw new Error(await readErrorMessage(response, 'Slack 연동 해제에 실패했습니다.'));
+    }
+
+    return (await response.json()) as {
+      ok: boolean;
+      disconnectedAt: string;
     };
   },
 };
