@@ -42,6 +42,8 @@ type MetricStreamPayload = {
   }>;
 };
 
+const EMPTY_METRICS: MetricSeries[] = [];
+
 const formatMetricValue = (value: number, unit: string) => {
   if (unit === 'req/s') {
     return value >= 1000 ? `${(value / 1000).toFixed(1)}k` : value.toFixed(0);
@@ -365,7 +367,7 @@ export default function MetricsPage() {
     queryKey: ['metrics'],
     queryFn: apiClient.getMetrics,
   });
-  const metrics = metricsData ?? [];
+  const metrics = metricsData ?? EMPTY_METRICS;
 
   const [liveMetrics, setLiveMetrics] = useState<MetricSeries[]>([]);
   const [isLiveEnabled, setIsLiveEnabled] = useState(true);
@@ -373,7 +375,9 @@ export default function MetricsPage() {
   const lastMetricCursorRef = useRef(0);
 
   useEffect(() => {
-    setLiveMetrics((prev) => (prev.length === 0 ? metrics : prev));
+    if (metrics.length > 0) {
+      setLiveMetrics((prev) => (prev.length === 0 ? metrics : prev));
+    }
 
     if (isLiveEnabled) {
       setStreamStatus('connecting');

@@ -47,6 +47,8 @@ type TraceStreamPayload = {
   trace: Trace;
 };
 
+const EMPTY_TRACES: Trace[] = [];
+
 export default function TracesPage() {
   const PAGE_SIZE = 30;
   const theme = useTheme();
@@ -55,7 +57,7 @@ export default function TracesPage() {
     isLoading: isTracesLoading,
     isFetched: isTracesFetched,
   } = useQuery({ queryKey: ['traces'], queryFn: apiClient.getTraces });
-  const traces = tracesData ?? [];
+  const traces = tracesData ?? EMPTY_TRACES;
   const [liveTraces, setLiveTraces] = useState<Trace[]>([]);
   const [isLiveEnabled, setIsLiveEnabled] = useState(true);
   const [streamStatus, setStreamStatus] = useState<'connecting' | 'live' | 'reconnecting' | 'offline'>('connecting');
@@ -73,7 +75,9 @@ export default function TracesPage() {
   } | null>(null);
 
   useEffect(() => {
-    setLiveTraces((prev) => (prev.length === 0 ? traces : prev));
+    if (traces.length > 0) {
+      setLiveTraces((prev) => (prev.length === 0 ? traces : prev));
+    }
 
     if (isLiveEnabled) {
       setStreamStatus('connecting');

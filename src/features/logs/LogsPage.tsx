@@ -38,6 +38,8 @@ type LogStreamPayload = {
   log: LogEntry;
 };
 
+const EMPTY_LOGS: LogEntry[] = [];
+
 type HistogramDataItem = {
   key: number;
   tsLabel: string;
@@ -293,7 +295,7 @@ export default function LogsPage() {
     isLoading: isLogsLoading,
     isFetched: isLogsFetched,
   } = useQuery({ queryKey: ['logs'], queryFn: apiClient.getLogs });
-  const queryLogs = queryLogsData ?? [];
+  const queryLogs = queryLogsData ?? EMPTY_LOGS;
   const [liveLogs, setLiveLogs] = useState<LogEntry[]>([]);
   const [isLiveEnabled, setIsLiveEnabled] = useState(true);
   const [streamStatus, setStreamStatus] = useState<'connecting' | 'live' | 'reconnecting' | 'offline'>('connecting');
@@ -316,7 +318,7 @@ export default function LogsPage() {
     if (isLiveEnabled) {
       setStreamStatus('connecting');
     }
-  }, [queryLogsData, queryLogs, isLiveEnabled]);
+  }, [queryLogsData, isLiveEnabled]);
 
   useEffect(() => {
     if (!isLiveEnabled) {
