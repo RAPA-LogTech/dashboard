@@ -11,6 +11,9 @@ import {
   LogEntry,
   MetricSeries,
   NotificationItem,
+  ReportFormat,
+  ReportItem,
+  ReportType,
   RunbookItem,
   SlackIntegrationStatus,
   SlackTestMessageResponse,
@@ -136,5 +139,49 @@ export const apiClient = {
       ok: boolean;
       disconnectedAt: string;
     };
+  },
+
+  // ============ Reports ============
+
+  async getReports(): Promise<ReportItem[]> {
+    await simulateLatency();
+
+    try {
+      const response = await fetch('/data/reports-example.json');
+      if (!response.ok) return [];
+      return (await response.json()) as ReportItem[];
+    } catch {
+      return [];
+    }
+  },
+
+  async createReport(payload: {
+    title: string;
+    type: ReportType;
+    format: ReportFormat;
+    periodFrom: string;
+    periodTo: string;
+    services: string[];
+  }): Promise<ReportItem> {
+    await simulateLatency();
+    // 실제 백엔드 없이 목 응답 반환
+    const now = new Date().toISOString();
+    return {
+      id: `rpt-${Date.now()}`,
+      title: payload.title,
+      type: payload.type,
+      status: 'generating',
+      format: payload.format,
+      period: { from: payload.periodFrom, to: payload.periodTo },
+      services: payload.services,
+      createdBy: 'admin@logtech.io',
+      createdAt: now,
+    };
+  },
+
+  async deleteReport(reportId: string): Promise<void> {
+    await simulateLatency();
+    // 실제 백엔드 없이 목 응답 (정상 삭제 처리)
+    void reportId;
   },
 };

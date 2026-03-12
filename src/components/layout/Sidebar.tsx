@@ -25,6 +25,7 @@ import {
   Chat as ChatIcon,
   Notifications as NotificationsIcon,
   MenuBook as RunbookIcon,
+  Assessment as ReportsIcon,
 } from '@mui/icons-material';
 
 export const drawerWidth = 280;
@@ -43,6 +44,7 @@ const navGroups = [
     label: 'Configuration',
     items: [
       { label: 'Dashboards', href: '/dashboards', icon: GridIcon },
+      { label: 'Reports', href: '/reports', icon: ReportsIcon },
       { label: 'Runbooks', href: '/runbooks', icon: RunbookIcon },
       { label: 'Notifications', href: '/notifications', icon: NotificationsIcon },
       { label: 'Integrations', href: '/integrations/slack', icon: IntegrationIcon },

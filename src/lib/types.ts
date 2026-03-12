@@ -176,6 +176,34 @@ export type RunbookItem = {
   updatedAt: string;
 };
 
+// ============ Reports ============
+
+export type ReportType = 'logs' | 'metrics' | 'traces' | 'incident';
+export type ReportStatus = 'draft' | 'generating' | 'completed' | 'failed';
+export type ReportFormat = 'pdf' | 'csv' | 'json';
+
+export type ReportItem = {
+  id: string;
+  title: string;
+  type: ReportType;
+  status: ReportStatus;
+  format: ReportFormat;
+  period: { from: string; to: string };
+  services: string[];
+  createdBy: string;
+  createdAt: string;
+  completedAt?: string;
+  fileSize?: string;
+  summary?: {
+    totalRecords?: number;
+    errorCount?: number;
+    warningCount?: number;
+    avgDurationMs?: number;
+    p99DurationMs?: number;
+    topService?: string;
+  };
+};
+
 // ============ Integrations ============
 
 export type IntegrationType = 'slack' | 'pagerduty' | 'webhook' | 'email' | 'datadog' | 'newrelic';
