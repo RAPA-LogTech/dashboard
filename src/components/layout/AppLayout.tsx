@@ -79,7 +79,6 @@ export default function AppLayout({ children }: AppLayoutProps) {
           flexDirection: 'column',
           flexGrow: 1,
           mt: `${topBarHeight}px`,
-          ml: !isMobile ? `${drawerWidth}px` : 0,
           height: `calc(100vh - ${topBarHeight}px)`,
           minWidth: 0,
           overflow: 'hidden',
