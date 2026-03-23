@@ -1,11 +1,12 @@
-'use client'
+import { FormControl, MenuItem, Select, Stack } from '@mui/material'
+import LogSourceSelect from './LogSourceSelect'
+import SearchInput from '@/components/logs/LogFilters/SearchInput'
+import LuceneToggle from '@/components/logs/LogFilters/LuceneToggle'
+import TimeRangeSelect from '@/components/logs/LogFilters/TimeRangeSelect'
+import RefreshButton from '@/components/logs/LogFilters/RefreshButton'
+import LiveButton from '@/components/logs/LogFilters/LiveButton'
 
-import { Stack } from '@mui/material'
-import SearchInput from './SearchInput'
-import LuceneToggle from './LuceneToggle'
-import TimeRangeSelect from './TimeRangeSelect'
-import RefreshButton from './RefreshButton'
-import LiveButton from './LiveButton'
+type LogSource = 'all' | 'app' | 'host'
 
 interface LogFiltersProps {
   query: string
@@ -18,6 +19,8 @@ interface LogFiltersProps {
   isLiveEnabled: boolean
   onLiveEnabledChange: (value: boolean) => void
   isLiveStreaming: boolean
+  logSource: LogSource
+  onLogSourceChange: (value: LogSource) => void
 }
 
 export default function LogFilters({
@@ -31,6 +34,8 @@ export default function LogFilters({
   isLiveEnabled,
   onLiveEnabledChange,
   isLiveStreaming,
+  logSource,
+  onLogSourceChange,
 }: LogFiltersProps) {
   const getPlaceholder = (isLucene: boolean) =>
     isLucene ? 'field:value (예: service:auth, level:ERROR)' : '키워드 입력 (예: error, auth)'
@@ -43,13 +48,7 @@ export default function LogFilters({
         placeholder={getPlaceholder(isLuceneMode)}
         sx={{ width: { xs: '100%', md: 'auto' }, flexGrow: { md: 1 } }}
       />
-      <Stack
-        direction="row"
-        gap={1}
-        alignItems="center"
-        flexShrink={0}
-        justifyContent="space-between"
-      >
+      <Stack direction="row" gap={1}>
         <LuceneToggle value={isLuceneMode} onChange={onLuceneModeChange} />
         <TimeRangeSelect value={timeRange} onChange={onTimeRangeChange} />
         <RefreshButton onClick={onRefresh} />
@@ -58,6 +57,7 @@ export default function LogFilters({
           isStreaming={isLiveStreaming}
           onChange={onLiveEnabledChange}
         />
+        <LogSourceSelect value={logSource} onChange={onLogSourceChange} />
       </Stack>
     </Stack>
   )
