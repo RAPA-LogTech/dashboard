@@ -110,13 +110,21 @@ export const apiClient = {
   },
   async getTraces(): Promise<Trace[]> {
     try {
-      // BFF → observability-service /v1/traces
       const response = await fetch('/api/observability/traces')
       if (!response.ok) return []
       const data = (await response.json()) as { traces?: Trace[] }
       return Array.isArray(data.traces) ? data.traces : []
     } catch {
       return []
+    }
+  },
+  async getTraceDetail(traceId: string): Promise<Trace | null> {
+    try {
+      const response = await fetch(`/api/observability/traces/${traceId}`)
+      if (!response.ok) return null
+      return (await response.json()) as Trace
+    } catch {
+      return null
     }
   },
   async getGlobalFilterOptions() {

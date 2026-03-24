@@ -51,12 +51,10 @@ export default function TracesDetailPage({ traceId }: { traceId: string }) {
   const theme = useTheme()
   const [showRelatedLogs, setShowRelatedLogs] = useState(false)
   const [hoveredSpanId, setHoveredSpanId] = useState<string | null>(null)
-  const { data: traces = [], isLoading } = useQuery({
-    queryKey: ['traces'],
-    queryFn: apiClient.getTraces,
+  const { data: trace, isLoading } = useQuery({
+    queryKey: ['trace', traceId],
+    queryFn: () => apiClient.getTraceDetail(traceId),
   })
-
-  const trace = useMemo(() => traces.find(item => item.id === traceId), [traces, traceId])
 
   const rows = useMemo(() => {
     if (!trace) return []

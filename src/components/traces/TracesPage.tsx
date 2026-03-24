@@ -75,6 +75,8 @@ export default function TracesPage() {
     yMin: number
     yMax: number
   } | null>(null)
+  const [filterService, setFilterService] = useState<string>('all')
+  const [filterOperation, setFilterOperation] = useState<string>('all')
 
   useEffect(() => {
     if (traces.length > 0) {
@@ -192,8 +194,38 @@ export default function TracesPage() {
     [liveTraces, traces]
   )
 
+  const serviceList = useMemo(() => {
+    const set = new Set<string>()
+    for (const t of traceSeries) {
+      set.add(t.service)
+      for (const s of t.spans) set.add(s.service)
+    }
+    return Array.from(set).sort()
+  }, [traceSeries])
+
+  const operationList = useMemo(() => {
+    const set = new Set<string>()
+    for (const t of traceSeries) {
+      set.add(t.operation)
+    }
+    return Array.from(set).sort()
+  }, [traceSeries])
+
+  const filteredTraceSeries = useMemo(() => {
+    let result = traceSeries
+    if (filterService !== 'all') {
+      result = result.filter(
+        t => t.service === filterService || t.spans.some(s => s.service === filterService)
+      )
+    }
+    if (filterOperation !== 'all') {
+      result = result.filter(t => t.operation === filterOperation)
+    }
+    return result
+  }, [traceSeries, filterService, filterOperation])
+
   const sortedTraces = useMemo(() => {
-    const cloned = [...traceSeries]
+    const cloned = [...filteredTraceSeries]
     // Remove duplicates by trace.id
     const uniqueTraces = new Map<string, Trace>()
     for (const trace of cloned) {
@@ -206,7 +238,7 @@ export default function TracesPage() {
       return uniqueArray.sort((a, b) => b.duration - a.duration)
     }
     return uniqueArray.sort((a, b) => b.startTime - a.startTime)
-  }, [traceSeries, sortKey])
+  }, [filteredTraceSeries, sortKey])
   const hasTraces = sortedTraces.length > 0
 
   const minStart = useMemo(
@@ -543,6 +575,57 @@ export default function TracesPage() {
           </Stack>
         </Button>
       </Stack>
+
+      <Box sx={{ display: 'flex', gap: 2 }}>
+        {/* Left Filter Panel */}
+        <Paper
+          variant="outlined"
+          sx={{
+            width: 260,
+            flexShrink: 0,
+            p: 2,
+            borderColor: 'divider',
+            bgcolor: 'background.paper',
+            display: { xs: 'none', md: 'block' },
+          }}
+        >
+          <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
+            Find Traces
+          </Typography>
+
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+            Service ({serviceList.length})
+          </Typography>
+          <FormControl size="small" fullWidth sx={{ mb: 2 }}>
+            <Select
+              value={filterService}
+              onChange={e => setFilterService(e.target.value)}
+            >
+              <MenuItem value="all">all</MenuItem>
+              {serviceList.map(s => (
+                <MenuItem key={s} value={s}>{s}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+            Operation ({operationList.length})
+          </Typography>
+          <FormControl size="small" fullWidth sx={{ mb: 2 }}>
+            <Select
+              value={filterOperation}
+              onChange={e => setFilterOperation(e.target.value)}
+            >
+              <MenuItem value="all">all</MenuItem>
+              {operationList.map(op => (
+                <MenuItem key={op} value={op}>{op}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Paper>
+
+        {/* Right Content */}
+        <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: { xs: 1.5, sm: 2, md: 3 } }}>
 
       <Paper
         variant="outlined"
@@ -904,6 +987,8 @@ export default function TracesPage() {
           </Stack>
         </DialogContent>
       </Dialog>
+        </Box>
+      </Box>
     </Box>
   )
 }
