@@ -560,7 +560,9 @@ export default function LogsPage() {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 1.5, sm: 2, md: 3 } }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+      <Box
+        sx={{ display: 'flex', alignItems: 'center', gap: 1.5, justifyContent: 'space-between' }}
+      >
         <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
           Logs
         </Typography>
