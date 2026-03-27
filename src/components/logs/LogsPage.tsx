@@ -319,10 +319,10 @@ export default function LogsPage() {
               return log.service.toLowerCase().includes(value)
             }
             if (key === 'env' || key === 'environment') {
-              return log.env.toLowerCase().includes(value)
+              return log?.env?.toLowerCase().includes(value)
             }
             if (key === 'level') {
-              return log.level.toLowerCase().includes(value)
+              return log.level?.toLowerCase().includes(value) ?? false
             }
             // metadata 필드 검색
             const metadata = log.metadata ?? {}

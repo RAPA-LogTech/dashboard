@@ -17,7 +17,7 @@ import {
   Typography,
   useTheme,
 } from '@mui/material'
-import { Area, AreaChart, ResponsiveContainer, YAxis } from 'recharts'
+import { Area, AreaChart, Line, LineChart, ResponsiveContainer, Tooltip, YAxis } from 'recharts'
 import type { MetricSeries } from '@/lib/types'
 import { apiClient } from '@/lib/apiClient'
 import NoDataState from '@/components/common/NoDataState'
@@ -52,7 +52,8 @@ function StatusBadge({ value }: { value: number }) {
   )
 }
 
-function EnvBadge({ env }: { env: string }) {
+function EnvBadge({ env }: { env?: string }) {
+  if (!env) return null
   const isProd = env === 'prod'
   return (
     <Chip
@@ -65,13 +66,23 @@ function EnvBadge({ env }: { env: string }) {
   )
 }
 
+const FIVE_MIN_MS = 5 * 60 * 1000
+
+function sliceLast5Min(points: MetricSeries['points']) {
+  if (points.length === 0) return points
+  const cutoff = points[points.length - 1].ts - FIVE_MIN_MS
+  const idx = points.findIndex(p => p.ts >= cutoff)
+  return idx === -1 ? points : points.slice(idx)
+}
+
 function MiniSparkline({ series, color }: { series: MetricSeries; color: string }) {
-  if (series.points.length === 0) return <Box sx={{ height: 48 }} />
-  const values = series.points.map(p => p.value)
+  const points = sliceLast5Min(series.points)
+  if (points.length === 0) return <Box sx={{ height: 48 }} />
+  const values = points.map(p => p.value)
   const min = Math.min(...values)
   const max = Math.max(...values)
   const spread = Math.max(1, max - min)
-  const data = series.points.map((p, i) => ({ i, v: p.value }))
+  const data = points.map((p, i) => ({ i, v: p.value }))
   return (
     <Box sx={{ height: 48, width: '100%', mt: 1 }}>
       <ResponsiveContainer width="100%" height="100%">
@@ -201,42 +212,6 @@ function MetricBigCard({
   )
 }
 
-function InfraCard({
-  series,
-  label,
-  color,
-}: {
-  series?: MetricSeries
-  label: string
-  color: string
-}) {
-  const value = getSeriesLast(series)
-  const queryLabel = series?.name ?? ''
-  return (
-    <Paper
-      variant="outlined"
-      sx={{ p: 2, borderColor: 'divider', bgcolor: 'background.paper', borderRadius: 1 }}
-    >
-      <Typography
-        variant="caption"
-        sx={{ fontWeight: 700, color: 'text.secondary', letterSpacing: 1, display: 'block' }}
-      >
-        {label}
-      </Typography>
-      <Typography variant="h3" sx={{ fontWeight: 700, mt: 0.5 }}>
-        {value.toFixed(0)}%
-      </Typography>
-      <Typography
-        variant="caption"
-        sx={{ color: 'text.secondary', wordBreak: 'break-all', display: 'block' }}
-      >
-        {queryLabel}
-      </Typography>
-      {series && <MiniSparkline series={series} color={color} />}
-    </Paper>
-  )
-}
-
 export default function MetricsPage() {
   const theme = useTheme()
   const [tab, setTab] = useState(0)
@@ -253,6 +228,7 @@ export default function MetricsPage() {
     queryFn: apiClient.getMetricHealth,
     staleTime: 30_000,
     refetchInterval: 30_000,
+    placeholderData: (prev) => prev,
   })
 
   const tabs = ['Overview', ...(serviceList?.length ? serviceList : [])]
@@ -380,10 +356,10 @@ export default function MetricsPage() {
     s => s.name.includes('error_rate') && !s.name.includes('4xx') && !s.name.includes('5xx') && (!selectedService || s.service === selectedService) && filterByEnv(s)
   )
   const error4xxSeries = metricSeries.filter(
-    s => s.name.includes('4xx') && (!selectedService || s.service === selectedService) && filterByEnv(s)
+    s => s.name.includes('4xx_ratio') && (!selectedService || s.service === selectedService) && filterByEnv(s)
   )
   const error5xxSeries = metricSeries.filter(
-    s => s.name.includes('5xx') && (!selectedService || s.service === selectedService) && filterByEnv(s)
+    s => s.name.includes('5xx_ratio') && (!selectedService || s.service === selectedService) && filterByEnv(s)
   )
   const requestSeries = metricSeries.filter(
     s => s.name.includes('request_rate') && (!selectedService || s.service === selectedService) && filterByEnv(s)
@@ -593,7 +569,6 @@ export default function MetricsPage() {
         ))}
       </Tabs>
 
-      {/* 서비스 헬스 — Overview 탭에서만 표시 */}
       {tab === 0 && (
         <Paper
           variant="outlined"
@@ -603,72 +578,68 @@ export default function MetricsPage() {
           {serviceHealth.length === 0 ? (
             <NoDataState title="No service health data" description="No data available for the selected environment." />
           ) : (
-            <Grid container spacing={1.5}>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5 }}>
               {serviceHealth
-                .filter(h => envFilter === 'all' || h.env === envFilter || h.rds_cpu !== undefined)
-                .map(h => (
-                  <Grid item xs={12} sm={6} md={3} key={`${h.service}-${h.env}`}>
-                    <Paper variant="outlined" sx={{ p: 2, borderColor: 'divider', bgcolor: 'background.paper', borderRadius: 1 }}>
-                      <Stack direction="row" spacing={0.75} alignItems="center" mb={0.5} flexWrap="nowrap">
-                        <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', letterSpacing: 1, whiteSpace: 'nowrap' }}>
-                          {h.service.toUpperCase()}
-                        </Typography>
-                        <EnvBadge env={h.env} />
-                      </Stack>
-                      {h.rds_cpu !== undefined ? (
-                        <>
-                          <Stack direction="row" spacing={1} alignItems="center">
-                            <Typography variant="h4" sx={{ fontWeight: 700 }}>{(h.rds_cpu as number).toFixed(1)}%</Typography>
-                            <StatusBadge value={h.rds_cpu as number} />
-                          </Stack>
-                          <Typography variant="caption" sx={{ color: 'text.secondary', mt: 0.25, display: 'block' }}>CPU Utilization</Typography>
-                          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>Connections: {(h.rds_connections as number ?? 0).toFixed(0)}</Typography>
-                        </>
-                      ) : (
-                        <>
-                          <Stack direction="row" spacing={1} alignItems="center">
-                            <Typography variant="h4" sx={{ fontWeight: 700 }}>{h.error_rate.toFixed(1)}%</Typography>
-                            <StatusBadge value={h.error_rate} />
-                          </Stack>
-                          <Typography variant="caption" sx={{ color: 'text.secondary', mt: 0.25, display: 'block' }}>HTTP error ratio (5m)</Typography>
-                        </>
-                      )}
-                    </Paper>
-                  </Grid>
-                ))}
-            </Grid>
+                .filter(h => (envFilter === 'all' || h.env === envFilter) && h.rds_cpu === undefined)
+                .map(h => {
+                  const s4xx = error4xxSeries.find(s => s.service === h.service)
+                  const s5xx = error5xxSeries.find(s => s.service === h.service)
+                  return (
+                    <Box key={`${h.service}-${h.env}`} sx={{ flex: '1 1 220px', minWidth: 0, maxWidth: 300 }}>
+                      <Paper variant="outlined" sx={{ p: 2, borderColor: 'divider', bgcolor: 'background.paper', borderRadius: 1, height: '100%' }}>
+                        <Stack direction="row" spacing={0.75} alignItems="center" mb={0.5} sx={{ overflow: 'hidden' }}>
+                          <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', letterSpacing: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>
+                            {h.service.toUpperCase()}
+                          </Typography>
+                          <EnvBadge env={h.env} />
+                        </Stack>
+                        {h.rds_cpu === undefined && (
+                          <>
+                            <Stack direction="row" spacing={1} alignItems="center">
+                              <Typography variant="h4" sx={{ fontWeight: 700 }}>{h.error_rate.toFixed(1)}%</Typography>
+                              <StatusBadge value={h.error_rate} />
+                            </Stack>
+                            <Typography variant="caption" sx={{ color: 'text.secondary', mt: 0.25, display: 'block' }}>HTTP error ratio (5m)</Typography>
+                            {(s4xx || s5xx) && (
+                              <>
+                                <Stack direction="row" spacing={2} sx={{ mt: 1 }}>
+                                  <Typography variant="caption" sx={{ fontWeight: 700, color: theme.palette.warning.main }}>
+                                    4xx: {getSeriesLast(s4xx).toFixed(1)}%
+                                  </Typography>
+                                  <Typography variant="caption" sx={{ fontWeight: 700, color: theme.palette.error.main }}>
+                                    5xx: {getSeriesLast(s5xx).toFixed(1)}%
+                                  </Typography>
+                                </Stack>
+                                <Box sx={{ height: 56, mt: 0.75 }}>
+                                  <ResponsiveContainer width="100%" height="100%">
+                                    <LineChart data={(() => {
+                                      const p4 = sliceLast5Min(s4xx?.points ?? [])
+                                      const p5 = sliceLast5Min(s5xx?.points ?? [])
+                                      const len = Math.max(p4.length, p5.length)
+                                      return Array.from({ length: len }, (_, i) => ({
+                                        i,
+                                        v4xx: p4[i]?.value ?? null,
+                                        v5xx: p5[i]?.value ?? null,
+                                      }))
+                                    })()} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
+                                      <YAxis hide domain={[0, 'auto']} />
+                                      <Line type="monotone" dataKey="v4xx" name="4xx" stroke={theme.palette.warning.main} strokeWidth={1.5} dot={false} isAnimationActive={false} connectNulls />
+                                      <Line type="monotone" dataKey="v5xx" name="5xx" stroke={theme.palette.error.main} strokeWidth={1.5} dot={false} isAnimationActive={false} connectNulls />
+                                    </LineChart>
+                                  </ResponsiveContainer>
+                                </Box>
+                              </>
+                            )}
+                          </>
+                        )}
+                      </Paper>
+                    </Box>
+                  )
+                })}
+            </Box>
           )}
         </Paper>
       )}
-
-      {/* 요청량 / 레이턴시 */}
-      <Paper variant="outlined" sx={{ p: 2, borderColor: 'divider', bgcolor: 'background.paper' }}>
-        <SectionLabel>Request Rate / Latency</SectionLabel>
-        <Box sx={{ overflowX: 'auto', pb: 1 }}>
-          <Stack direction="row" spacing={1.5} sx={{ minWidth: 'min-content' }}>
-            {requestSeries.map(s => (
-              <Box key={s.id} sx={{ minWidth: 220, maxWidth: 260, flex: '0 0 auto' }}>
-                <MetricBigCard series={s} label={s.name} sublabel={s.service ?? 'all'} color={theme.palette.info.main} />
-              </Box>
-            ))}
-            {errorSeries.map(s => (
-              <Box key={s.id} sx={{ minWidth: 220, maxWidth: 260, flex: '0 0 auto' }}>
-                <MetricBigCard series={s} label={s.name} sublabel={s.service ?? 'all'} color={theme.palette.error.main} />
-              </Box>
-            ))}
-            {error5xxSeries.map(s => (
-              <Box key={s.id} sx={{ minWidth: 220, maxWidth: 260, flex: '0 0 auto' }}>
-                <MetricBigCard series={s} label={s.name} sublabel={s.service ?? 'all'} color={theme.palette.error.dark} />
-              </Box>
-            ))}
-            {latencySeries.map(s => (
-              <Box key={s.id} sx={{ minWidth: 220, maxWidth: 260, flex: '0 0 auto' }}>
-                <MetricBigCard series={s} label={s.name} sublabel={s.service ?? 'all'} color={theme.palette.warning.main} />
-              </Box>
-            ))}
-          </Stack>
-        </Box>
-      </Paper>
 
       {/* Route별 레이턴시 테이블 */}
       {Object.keys(routeByService).length > 0 && (
@@ -702,22 +673,81 @@ export default function MetricsPage() {
         </Paper>
       )}
 
+      {/* Latency p95 */}
+      {latencySeries.length > 0 && (
+        <Paper variant="outlined" sx={{ p: 2, borderColor: 'divider', bgcolor: 'background.paper' }}>
+          <SectionLabel>Latency p95</SectionLabel>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5 }}>
+            {[...new Set(latencySeries.map(s => s.service).filter(Boolean))].map(svc => {
+              const s = latencySeries.find(l => l.service === svc)
+              const val = getSeriesLast(s)
+              return (
+                <Box key={svc} sx={{ flex: '1 1 220px', minWidth: 0, maxWidth: 300 }}>
+                  <Paper variant="outlined" sx={{ p: 2, borderColor: 'divider', bgcolor: 'background.paper', borderRadius: 1 }}>
+                    <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', letterSpacing: 1, display: 'block', mb: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {(svc as string).toUpperCase()}
+                    </Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 700, color: theme.palette.warning.main }}>{val.toFixed(0)}ms</Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>p95 latency</Typography>
+                    {s && <MiniSparkline series={{ ...s, points: sliceLast5Min(s.points) }} color={theme.palette.warning.main} />}
+                  </Paper>
+                </Box>
+              )
+            })}
+          </Box>
+        </Paper>
+      )}
+
       {/* 인프라 요약 */}
       <Paper variant="outlined" sx={{ p: 2, borderColor: 'divider', bgcolor: 'background.paper' }}>
         <SectionLabel>Infrastructure Summary</SectionLabel>
-        <Box sx={{ overflowX: 'auto', pb: 1 }}>
-          <Stack direction="row" spacing={1.5} sx={{ minWidth: 'min-content' }}>
-            {cpuSeries.map(s => (
-              <Box key={s.id} sx={{ minWidth: 220, maxWidth: 260, flex: '0 0 auto' }}>
-                <InfraCard series={s} label="CONTAINER CPU (AVG)" color={theme.palette.success.main} />
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5 }}>
+          {[...new Set([...cpuSeries, ...memorySeries].map(s => s.service).filter(Boolean))].map(svc => {
+            const cpu = cpuSeries.find(s => s.service === svc)
+            const mem = memorySeries.find(s => s.service === svc)
+            const cpuVal = getSeriesLast(cpu)
+            const memVal = getSeriesLast(mem)
+            return (
+              <Box key={svc} sx={{ flex: '1 1 220px', minWidth: 0, maxWidth: 300 }}>
+                <Paper variant="outlined" sx={{ p: 2, borderColor: 'divider', bgcolor: 'background.paper', borderRadius: 1 }}>
+                  <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', letterSpacing: 1, display: 'block', mb: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {(svc as string).toUpperCase()}
+                  </Typography>
+                  <Stack direction="row" spacing={2} sx={{ width: '100%' }}>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography variant="h4" sx={{ fontWeight: 700, color: theme.palette.success.main }}>{cpuVal.toFixed(2)}%</Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>CPU avg</Typography>
+                      {cpu && <MiniSparkline series={{ ...cpu, points: sliceLast5Min(cpu.points) }} color={theme.palette.success.main} />}
+                    </Box>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography variant="h4" sx={{ fontWeight: 700, color: theme.palette.secondary.main }}>{memVal.toFixed(2)}%</Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>MEM avg</Typography>
+                      {mem && <MiniSparkline series={{ ...mem, points: sliceLast5Min(mem.points) }} color={theme.palette.secondary.main} />}
+                    </Box>
+                  </Stack>
+                </Paper>
               </Box>
-            ))}
-            {memorySeries.map(s => (
-              <Box key={s.id} sx={{ minWidth: 220, maxWidth: 260, flex: '0 0 auto' }}>
-                <InfraCard series={s} label="CONTAINER MEMORY (AVG)" color={theme.palette.secondary.main} />
-              </Box>
-            ))}
-          </Stack>
+            )
+          })}
+          {serviceHealth.filter(h => h.rds_cpu !== undefined).map(h => (
+            <Box key="rds" sx={{ flex: '1 1 220px', minWidth: 0, maxWidth: 300 }}>
+              <Paper variant="outlined" sx={{ p: 2, borderColor: 'divider', bgcolor: 'background.paper', borderRadius: 1 }}>
+                <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', letterSpacing: 1, display: 'block', mb: 1 }}>
+                  RDS
+                </Typography>
+                <Stack direction="row" spacing={2} sx={{ width: '100%' }}>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography variant="h4" sx={{ fontWeight: 700, color: theme.palette.success.main }}>{(h.rds_cpu as number).toFixed(1)}%</Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>CPU</Typography>
+                  </Box>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Typography variant="h4" sx={{ fontWeight: 700, color: theme.palette.info.main }}>{(h.rds_connections as number ?? 0).toFixed(0)}</Typography>
+                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>Connections</Typography>
+                  </Box>
+                </Stack>
+              </Paper>
+            </Box>
+          ))}
         </Box>
       </Paper>
     </Box>

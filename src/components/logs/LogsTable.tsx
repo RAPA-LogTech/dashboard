@@ -59,7 +59,7 @@ const highlightText = (text: string, query?: string) => {
 }
 
 function LogsTableComponent({ logs, onSelect, query, compact = false }: LogsTableProps) {
-  const getLevelColor = (level: string) => {
+  const getLevelColor = (level: string | null) => {
     switch (level) {
       case 'ERROR':
         return { bgcolor: 'rgba(239, 68, 68, 0.1)', textColor: '#ef4444' }
@@ -67,8 +67,10 @@ function LogsTableComponent({ logs, onSelect, query, compact = false }: LogsTabl
         return { bgcolor: 'rgba(240, 153, 75, 0.1)', textColor: '#f59e0b' }
       case 'INFO':
         return { bgcolor: 'rgba(59, 130, 246, 0.1)', textColor: '#3b82f6' }
-      default:
+      case 'DEBUG':
         return { bgcolor: 'rgba(16, 185, 129, 0.1)', textColor: '#10b981' }
+      default:
+        return { bgcolor: 'rgba(148, 163, 184, 0.1)', textColor: '#94a3b8' }
     }
   }
 
@@ -193,7 +195,7 @@ function LogsTableComponent({ logs, onSelect, query, compact = false }: LogsTabl
                   const color = getLevelColor(row.level)
                   return (
                     <Chip
-                      label={row.level}
+                      label={row.level ?? 'UNKNOWN'}
                       size="small"
                       sx={{
                         bgcolor: color.bgcolor,
@@ -224,7 +226,7 @@ function LogsTableComponent({ logs, onSelect, query, compact = false }: LogsTabl
                 >
                   {compact
                     ? highlightText(
-                        `{ "level": "${row.level.toLowerCase()}", "service": "${row.service}", "msg": "${row.message}", "traceId": "${row.metadata?.traceId ?? row.traceId ?? '-'}" }`,
+                        `{ "level": "${row.level?.toLowerCase() ?? 'unknown'}", "service": "${row.service}", "msg": "${row.message}", "traceId": "${row.metadata?.traceId ?? row.traceId ?? '-'}" }`,
                         query
                       )
                     : highlightText(row.message, query)}

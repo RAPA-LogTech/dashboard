@@ -15,7 +15,7 @@ export async function GET(request: Request) {
 
   try {
     const res = await fetch(upstream, {
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(30000),
       headers: { 'Content-Type': 'application/json' },
     })
 

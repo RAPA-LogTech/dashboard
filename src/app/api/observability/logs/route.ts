@@ -28,7 +28,7 @@ export async function GET(request: Request) {
   const upstream = `${BASE_URL}/v1/logs?${searchParams.toString()}`
 
   try {
-    const res = await fetch(upstream, { signal: AbortSignal.timeout(8000) })
+    const res = await fetch(upstream, { signal: AbortSignal.timeout(30000) })
     const data = await res.json()
     return Response.json(data, { status: res.status })
   } catch (error) {

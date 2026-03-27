@@ -102,7 +102,7 @@ export const apiClient = {
       return []
     }
   },
-  async getMetricHealth(): Promise<Array<{ service: string; envs: string[]; error_rate: number }>> {
+  async getMetricHealth(): Promise<Array<{ service: string; env?: string; error_rate: number; rds_cpu?: number; rds_connections?: number }>> {
     try {
       const res = await fetch('/api/observability/metrics/health')
       if (!res.ok) return []

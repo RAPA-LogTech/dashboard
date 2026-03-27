@@ -13,7 +13,7 @@ export type LogEntry = {
   timestamp: string
   service: string
   env: Environment | null
-  level: LogLevel
+  level: LogLevel | null
   message: string
   traceId?: string
   metadata?: {

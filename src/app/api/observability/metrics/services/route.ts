@@ -8,7 +8,7 @@ export async function GET() {
   }
   try {
     const res = await fetch(`${BASE_URL}/v1/metrics/services`, {
-      signal: AbortSignal.timeout(8000),
+      signal: AbortSignal.timeout(30000),
     })
     if (!res.ok) return Response.json([], { status: 200 })
     return Response.json(await res.json())

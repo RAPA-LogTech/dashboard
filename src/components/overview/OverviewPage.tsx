@@ -295,7 +295,7 @@ export default function OverviewPage() {
                 {loading
                   ? Array.from({ length: 4 }).map((_, i) => <TableRowSkeleton key={i} cols={4} />)
                   : logs.slice(0, 4).map(log => {
-                      const lc = levelColors[log.level] ?? levelColors.INFO
+                      const lc = levelColors[log.level ?? ''] ?? levelColors.INFO
                       return (
                         <TableRow key={log.id} onClick={() => { window.location.href = `/logs?service=${log.service}` }} sx={{ borderBottom: '1px solid', borderColor: theme => theme.palette.divider, cursor: 'pointer', '&:hover': { bgcolor: theme => (theme.palette.mode === 'dark' ? '#1e293b' : '#f5f9fc') } }}>
                           <TableCell sx={{ color: theme => theme.palette.text.primary, fontSize: '0.8rem', fontFamily: 'monospace', fontWeight: 500, padding: '10px 12px' }}>
