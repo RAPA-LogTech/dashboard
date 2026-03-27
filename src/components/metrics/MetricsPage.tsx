@@ -372,7 +372,7 @@ export default function MetricsPage() {
   const filterByEnv = (s: MetricSeries) => {
     if (envFilter === 'all') return true
     const env = (s as MetricSeries & { env?: string }).env
-    if (!env) return true
+    if (!env) return false
     return env === envFilter
   }
 
@@ -518,7 +518,6 @@ export default function MetricsPage() {
       </Box>
     )
   }
-  console.log(serviceHealth)
   if (isFetched && metricSeries.length === 0) {
     return (
       <Box>
@@ -601,59 +600,44 @@ export default function MetricsPage() {
           sx={{ p: 2, borderColor: 'divider', bgcolor: 'background.paper' }}
         >
           <SectionLabel>Service Health</SectionLabel>
-          <Grid container spacing={1.5}>
-            {(serviceHealth.length > 0 ? serviceHealth : errorSeries.map(s => ({
-              service: s.service ?? s.id.split('_')[0],
-              envs: ['prod'],
-              error_rate: getSeriesLast(s),
-            }))).map(h => (
-              <Grid item xs={12} sm={6} md={3} key={h.service}>
-                <Paper variant="outlined" sx={{ p: 2, borderColor: 'divider', bgcolor: 'background.paper', borderRadius: 1 }}>
-                  <Stack direction="row" spacing={0.75} alignItems="center" mb={0.5} flexWrap="wrap">
-                    <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', letterSpacing: 1 }}>
-                      {h.service.toUpperCase()}
-                    </Typography>
-                    {h.envs.filter(e => envFilter === 'all' || e === envFilter).map(env => (
-                      <EnvBadge key={env} env={env} />
-                    ))}
-                  </Stack>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <Typography variant="h4" sx={{ fontWeight: 700 }}>{h.error_rate.toFixed(1)}%</Typography>
-                    <StatusBadge value={h.error_rate} />
-                  </Stack>
-                  <Typography variant="caption" sx={{ color: 'text.secondary', mt: 0.25, display: 'block' }}>
-                    HTTP error ratio (5m)
-                  </Typography>
-                  {/* 4xx 에러율 */}
-                  {error4xxSeries.filter(s => s.service === h.service).slice(0, 1).map(s => (
-                    <Typography key={s.id} variant="caption" sx={{ color: 'warning.main', display: 'block', mt: 0.5 }}>
-                      4xx: {getSeriesLast(s).toFixed(1)}% · {s.name}
-                    </Typography>
-                  ))}
-                  {/* 5xx 에러율 */}
-                  {error5xxSeries.filter(s => s.service === h.service).slice(0, 1).map(s => (
-                    <Typography key={s.id} variant="caption" sx={{ color: 'error.main', display: 'block', mt: 0.25 }}>
-                      5xx: {getSeriesLast(s).toFixed(1)}% · {s.name}
-                    </Typography>
-                  ))}
-                </Paper>
-              </Grid>
-            ))}
-            {/* RDS 카드 — prod 필터이거나 all일 때 */}
-            {(envFilter === 'prod' || envFilter === 'all') && rdsSeries.map(s => (
-              <Grid item xs={12} sm={6} md={3} key={s.id}>
-                <Paper variant="outlined" sx={{ p: 2, borderColor: 'warning.dark', bgcolor: 'background.paper', borderRadius: 1 }}>
-                  <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', letterSpacing: 1, display: 'block', mb: 0.5 }}>
-                    {s.name.toUpperCase().replace(/_/g, ' ')} (PROD)
-                  </Typography>
-                  <Typography variant="h4" sx={{ fontWeight: 700 }}>
-                    {getSeriesLast(s).toFixed(0)}{s.unit === '%' ? '%' : ''}
-                  </Typography>
-                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>CloudWatch AWS/RDS</Typography>
-                </Paper>
-              </Grid>
-            ))}
-          </Grid>
+          {serviceHealth.length === 0 ? (
+            <NoDataState title="No service health data" description="No data available for the selected environment." />
+          ) : (
+            <Grid container spacing={1.5}>
+              {serviceHealth
+                .filter(h => envFilter === 'all' || h.env === envFilter || h.rds_cpu !== undefined)
+                .map(h => (
+                  <Grid item xs={12} sm={6} md={3} key={`${h.service}-${h.env}`}>
+                    <Paper variant="outlined" sx={{ p: 2, borderColor: 'divider', bgcolor: 'background.paper', borderRadius: 1 }}>
+                      <Stack direction="row" spacing={0.75} alignItems="center" mb={0.5} flexWrap="nowrap">
+                        <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', letterSpacing: 1, whiteSpace: 'nowrap' }}>
+                          {h.service.toUpperCase()}
+                        </Typography>
+                        <EnvBadge env={h.env} />
+                      </Stack>
+                      {h.rds_cpu !== undefined ? (
+                        <>
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            <Typography variant="h4" sx={{ fontWeight: 700 }}>{(h.rds_cpu as number).toFixed(1)}%</Typography>
+                            <StatusBadge value={h.rds_cpu as number} />
+                          </Stack>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', mt: 0.25, display: 'block' }}>CPU Utilization</Typography>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block' }}>Connections: {(h.rds_connections as number ?? 0).toFixed(0)}</Typography>
+                        </>
+                      ) : (
+                        <>
+                          <Stack direction="row" spacing={1} alignItems="center">
+                            <Typography variant="h4" sx={{ fontWeight: 700 }}>{h.error_rate.toFixed(1)}%</Typography>
+                            <StatusBadge value={h.error_rate} />
+                          </Stack>
+                          <Typography variant="caption" sx={{ color: 'text.secondary', mt: 0.25, display: 'block' }}>HTTP error ratio (5m)</Typography>
+                        </>
+                      )}
+                    </Paper>
+                  </Grid>
+                ))}
+            </Grid>
+          )}
         </Paper>
       )}
 
