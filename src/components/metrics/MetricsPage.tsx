@@ -184,7 +184,13 @@ export default function MetricsPage() {
         />
       )}
       {tab === 1 && <JvmTab metricSeries={metricSeries} envFilter={envFilter} />}
-      {tab === 2 && <DatabaseTab metricSeries={metricSeries} envFilter={envFilter} />}
+      {tab === 2 && (
+        <DatabaseTab
+          metricSeries={metricSeries}
+          envFilter={envFilter}
+          serviceHealth={serviceHealth}
+        />
+      )}
       {tab === 3 && (
         <InfraTab
           metricSeries={metricSeries}

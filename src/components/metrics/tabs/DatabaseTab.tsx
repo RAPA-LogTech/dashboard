@@ -6,9 +6,21 @@ import NoDataState from '@/components/common/NoDataState'
 import { getSeriesLast, sliceLast5Min } from '../metricsUtils'
 import { MiniSparkline, SectionLabel } from '../MetricsShared'
 
+interface ServiceHealth {
+  service: string;
+  env?: string;
+  error_rate: number;
+  rds_cpu?: number;
+  rds_connections?: number;
+  rds_freeable_memory?: number;
+  rds_read_latency?: number;
+  rds_write_latency?: number;
+}
+
 interface Props {
-  metricSeries: MetricSeries[]
-  envFilter: string
+  metricSeries: MetricSeries[];
+  envFilter: string;
+  serviceHealth: ServiceHealth[];
 }
 
 function filterSeries(series: MetricSeries[], name: string, envFilter: string) {
@@ -35,7 +47,7 @@ function MetricCard({ series, label, unit, color }: { series?: MetricSeries; lab
   )
 }
 
-export default function DatabaseTab({ metricSeries, envFilter }: Props) {
+export default function DatabaseTab({ metricSeries, envFilter, serviceHealth }: Props) {
   const theme = useTheme()
 
   // 기존 p95 시리즈
@@ -58,8 +70,12 @@ export default function DatabaseTab({ metricSeries, envFilter }: Props) {
     ].map(s => s.service).filter(Boolean))
   ] as string[]
 
-  if (services.length === 0) {
-    return <NoDataState title="No Database data" description="No DB connection metrics available." />
+
+  // RDS 정보 추출
+  const rdsList = serviceHealth.filter(h => h.rds_cpu !== undefined)
+
+  if (services.length === 0 && rdsList.length === 0) {
+    return <NoDataState title="No Database data" description="No DB connection or RDS metrics available." />
   }
 
   return (
@@ -103,6 +119,46 @@ export default function DatabaseTab({ metricSeries, envFilter }: Props) {
           </Paper>
         )
       })}
+
+      {/* RDS (CloudWatch) 메트릭 */}
+      {rdsList.length > 0 && (
+        <Paper variant="outlined" sx={{ p: 2, borderColor: 'divider', bgcolor: 'background.paper' }}>
+          <SectionLabel>RDS</SectionLabel>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5 }}>
+            {rdsList.map((h, idx) => (
+              <Box key={idx} sx={{ flex: '1 1 320px', minWidth: 0, maxWidth: 400 }}>
+                <Paper variant="outlined" sx={{ p: 2, borderColor: 'divider', bgcolor: 'background.paper', borderRadius: 1 }}>
+                  <Typography variant="caption" sx={{ fontWeight: 700, color: 'text.secondary', letterSpacing: 1, display: 'block', mb: 1 }}>RDS</Typography>
+                  <Box sx={{ display: 'flex', flexDirection: 'row', gap: 2 }}>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography variant="h4" sx={{ fontWeight: 700, color: theme.palette.success.main }}>{(h.rds_cpu as number)?.toFixed(1) ?? '-' }%</Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>CPU</Typography>
+                    </Box>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography variant="h4" sx={{ fontWeight: 700, color: theme.palette.info.main }}>{(h.rds_connections as number ?? 0).toFixed(0)}</Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>Connections</Typography>
+                    </Box>
+                  </Box>
+                  <Box sx={{ display: 'flex', flexDirection: 'row', gap: 2, mt: 2 }}>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography variant="h4" sx={{ fontWeight: 700, color: theme.palette.warning.main }}>{(h.rds_freeable_memory as number)?.toLocaleString() ?? '-'}</Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>Freeable Memory (bytes)</Typography>
+                    </Box>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography variant="h4" sx={{ fontWeight: 700, color: theme.palette.secondary.main }}>{(h.rds_read_latency as number)?.toFixed(3) ?? '-'}</Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>Read Latency (s)</Typography>
+                    </Box>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography variant="h4" sx={{ fontWeight: 700, color: theme.palette.error.main }}>{(h.rds_write_latency as number)?.toFixed(3) ?? '-'}</Typography>
+                      <Typography variant="caption" sx={{ color: 'text.secondary' }}>Write Latency (s)</Typography>
+                    </Box>
+                  </Box>
+                </Paper>
+              </Box>
+            ))}
+          </Box>
+        </Paper>
+      )}
     </Box>
   )
 }
