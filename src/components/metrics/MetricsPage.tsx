@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Box, Chip, Paper, Skeleton, Stack, Tab, Tabs, Typography } from '@mui/material'
 import type { MetricSeries } from '@/lib/types'
-import { apiClient } from '@/lib/apiClient'
+import { apiClient, getContainerMetrics, getHostMetrics } from '@/lib/apiClient'
 import NoDataState from '@/components/common/NoDataState'
 import LiveButton from '@/components/logs/LogFilters/LiveButton'
 import { filterByEnv } from './metricsUtils'
@@ -40,15 +40,22 @@ export default function MetricsPage() {
   })
   const metrics = metricsData ?? EMPTY_METRICS
 
-  // 인프라 메트릭 별도 패칭
-  const { data: infraMetricsData } = useQuery({
-    queryKey: ['infra-metrics'],
-    queryFn: apiClient.getInfraMetrics,
+
+  // 컨테이너/호스트 메트릭 분리 패칭
+  const { data: containerMetricsData = EMPTY_METRICS } = useQuery({
+    queryKey: ['container-metrics'],
+    queryFn: getContainerMetrics,
     staleTime: 30_000,
     refetchInterval: 30_000,
     placeholderData: (prev) => prev,
   })
-  const infraMetrics = infraMetricsData ?? EMPTY_METRICS
+  const { data: hostMetricsData = EMPTY_METRICS } = useQuery({
+    queryKey: ['host-metrics'],
+    queryFn: getHostMetrics,
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+    placeholderData: (prev) => prev,
+  })
 
   const [liveMetrics, setLiveMetrics] = useState<MetricSeries[]>([])
   const [isLiveEnabled, setIsLiveEnabled] = useState(true)
@@ -204,7 +211,8 @@ export default function MetricsPage() {
       )}
       {tab === 3 && (
         <InfraTab
-          metricSeries={infraMetrics}
+          containerMetrics={containerMetricsData}
+          hostMetrics={hostMetricsData}
           serviceHealth={serviceHealth}
           envFilter={envFilter}
         />

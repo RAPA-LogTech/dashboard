@@ -8,8 +8,10 @@ import { MiniSparkline, SectionLabel } from '../MetricsShared'
 
 
 
+
 interface Props {
-  metricSeries: MetricSeries[];
+  containerMetrics: MetricSeries[];
+  hostMetrics: MetricSeries[];
   serviceHealth: any[];
   envFilter: string;
 }
@@ -21,18 +23,18 @@ function filterSeries(series: MetricSeries[], name: string, envFilter: string) {
   });
 }
 
-export default function InfraTab({ metricSeries, serviceHealth, envFilter }: Props) {
+export default function InfraTab({ containerMetrics, hostMetrics, serviceHealth, envFilter }: Props) {
   const theme = useTheme();
 
   // 서비스별 컨테이너 CPU/MEM
-  const containerCpuSeries = filterSeries(metricSeries, 'app_container_cpu_utilization_avg_5m', envFilter);
-  const containerMemSeries = filterSeries(metricSeries, 'app_container_memory_utilization_avg_5m', envFilter);
+  const containerCpuSeries = filterSeries(containerMetrics, 'app_container_cpu_utilization_avg_5m', envFilter);
+  const containerMemSeries = filterSeries(containerMetrics, 'app_container_memory_utilization_avg_5m', envFilter);
   const containerServices = [...new Set([...containerCpuSeries, ...containerMemSeries].map(s => s.service).filter(Boolean))] as string[];
 
   // Host metrics
-  const hostMemSeries = filterSeries(metricSeries, 'host_memory_usage_avg_5m', envFilter);
-  const hostNetRxSeries = filterSeries(metricSeries, 'host_network_rx_bytes_5m', envFilter);
-  const hostNetTxSeries = filterSeries(metricSeries, 'host_network_tx_bytes_5m', envFilter);
+  const hostMemSeries = filterSeries(hostMetrics, 'host_memory_usage_avg_5m', envFilter);
+  const hostNetRxSeries = filterSeries(hostMetrics, 'host_network_rx_bytes_5m', envFilter);
+  const hostNetTxSeries = filterSeries(hostMetrics, 'host_network_tx_bytes_5m', envFilter);
   const hostInstances = [...new Set([
     ...hostMemSeries,
     ...hostNetRxSeries,
