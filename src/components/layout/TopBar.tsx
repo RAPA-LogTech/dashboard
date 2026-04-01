@@ -171,6 +171,15 @@ export default function TopBar({ onMenuClick, showMenuButton = false }: TopBarPr
           }}
         >
           <Box
+            component="img"
+            src="/logo/android-chrome-192x192.png"
+            alt="LogTech"
+            sx={{
+              width: 32,
+              height: 32,
+            }}
+          />
+          <Box
             sx={{
               display: 'flex',
               flexDirection: 'column',

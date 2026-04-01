@@ -6,6 +6,11 @@ import AppLayout from '@/components/layout/AppLayout'
 export const metadata: Metadata = {
   title: 'LogTech Observability',
   description: 'Datadog-style observability dashboard scaffold',
+  icons: {
+    icon: '/logo/favicon-32x32.png',
+    shortcut: '/logo/favicon.ico',
+    apple: '/logo/apple-touch-icon.png',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
