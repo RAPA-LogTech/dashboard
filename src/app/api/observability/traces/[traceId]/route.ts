@@ -8,7 +8,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ tra
   }
 
   const { traceId } = await params
-  const upstream = `${BASE_URL}/v1/traces/${encodeURIComponent(traceId)}`
+  const upstream = `${BASE_URL}/v1/traces/trace/${encodeURIComponent(traceId)}`
 
   try {
     const res = await fetch(upstream, {
