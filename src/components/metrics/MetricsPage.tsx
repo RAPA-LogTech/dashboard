@@ -5,8 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Box, Chip, Paper, Skeleton, Stack, Tab, Tabs, Typography } from '@mui/material'
 import type { MetricSeries } from '@/lib/types'
-import { apiClient, getContainerMetrics, getDatabaseMetrics, getHostMetrics, getJvmMetrics, getRdsMetrics } from '@/lib/apiClient'
-import NoDataState from '@/components/common/NoDataState'
+import { apiClient, getDatabaseMetrics, getJvmMetrics, getRdsMetrics } from '@/lib/apiClient'
 import LiveButton from '@/components/logs/LogFilters/LiveButton'
 import { filterByEnv } from './metricsUtils'
 import OverviewTab from './tabs/OverviewTab'
@@ -41,7 +40,7 @@ export default function MetricsPage({ currentTab = 'overview' }: { currentTab?: 
     placeholderData: (prev) => prev,
   })
 
-  const { data: metricsData, isLoading, isFetched } = useQuery({
+  const { data: metricsData, isLoading } = useQuery({
     queryKey: ['metrics'],
     queryFn: apiClient.getMetrics,
   })
@@ -73,24 +72,6 @@ export default function MetricsPage({ currentTab = 'overview' }: { currentTab?: 
     placeholderData: (prev) => prev,
     enabled: currentTab === 'database',
   })
-
-
-  // 컨테이너/호스트 메트릭 분리 패칭
-  const { data: containerMetricsData = EMPTY_METRICS } = useQuery({
-    queryKey: ['container-metrics'],
-    queryFn: getContainerMetrics,
-    staleTime: 30_000,
-    refetchInterval: 30_000,
-    placeholderData: (prev) => prev,
-  })
-  const { data: hostMetricsData = EMPTY_METRICS } = useQuery({
-    queryKey: ['host-metrics'],
-    queryFn: getHostMetrics,
-    staleTime: 30_000,
-    refetchInterval: 30_000,
-    placeholderData: (prev) => prev,
-  })
-
   const [liveMetrics, setLiveMetrics] = useState<MetricSeries[]>([])
   const [isLiveEnabled, setIsLiveEnabled] = useState(true)
   const [streamStatus, setStreamStatus] = useState<'connecting' | 'live' | 'reconnecting' | 'offline'>('connecting')
@@ -249,14 +230,7 @@ export default function MetricsPage({ currentTab = 'overview' }: { currentTab?: 
           envFilter={envFilter}
         />
       )}
-      {currentTab === 'infra' && (
-        <InfraTab
-          containerMetrics={containerMetricsData}
-          hostMetrics={hostMetricsData}
-          serviceHealth={serviceHealth}
-          envFilter={envFilter}
-        />
-      )}
+      {currentTab === 'infra' && <InfraTab envFilter={envFilter} />}
     </Box>
   )
 }

@@ -36,10 +36,27 @@ const toNumber = (value: number | string) => {
 }
 
 const getServiceFromMetric = (metric: Record<string, string>) => {
-  const fromService = metric.service || metric.service_name
+  const fromService =
+    metric.service ||
+    metric.service_name ||
+    metric.container_name ||
+    metric.service_namespace
   if (fromService) return fromService
   const job = metric.job || ''
   return job.includes('/') ? job.split('/').pop() || '' : job
+}
+
+const getInstanceFromMetric = (metric: Record<string, string>) => {
+  return (
+    metric.instance ||
+    metric.host_name ||
+    metric.container_name ||
+    metric.service_name ||
+    metric.job ||
+    metric.service_instance_id ||
+    metric.pod ||
+    ''
+  )
 }
 
 const getEnvFromMetric = (metric: Record<string, string>) => {
@@ -96,7 +113,8 @@ const toMetricSeriesFromProm = (rows: PromRangeResult[], metricName: string, uni
     .map((row, idx) => {
       const metric = row.metric ?? {}
       const service = getServiceFromMetric(metric)
-      const instance = metric.instance
+      const instance = getInstanceFromMetric(metric)
+      const env = getEnvFromMetric(metric)
       const points = (row.values ?? [])
         .map(([ts, value]) => ({ ts: Math.round(toNumber(ts) * 1000), value: toNumber(value) }))
         .filter((p) => Number.isFinite(p.ts) && Number.isFinite(p.value))
@@ -108,6 +126,7 @@ const toMetricSeriesFromProm = (rows: PromRangeResult[], metricName: string, uni
         unit,
         service: service || undefined,
         instance: instance || undefined,
+        env,
         points,
       } as MetricSeries
     })
@@ -151,7 +170,7 @@ export async function getHostMetrics(): Promise<MetricSeries[]> {
     const memory = toMetricSeriesFromProm(
       ((data as { memory?: PromRangeResult[] }).memory ?? []),
       'host_memory_usage_avg_5m',
-      '%'
+      'bytes'
     )
     const networkRx = toMetricSeriesFromProm(
       ((data as { network_rx?: PromRangeResult[] }).network_rx ?? []),
@@ -164,17 +183,6 @@ export async function getHostMetrics(): Promise<MetricSeries[]> {
       'bytes'
     )
     return [...memory, ...networkRx, ...networkTx]
-  } catch {
-    return []
-  }
-}
-
-export async function getInfraMetrics(): Promise<MetricSeries[]> {
-  try {
-    const response = await fetch('/api/observability/metrics/infra')
-    if (!response.ok) return []
-    const data = (await response.json()) as MetricSeries[]
-    return Array.isArray(data) ? data : []
   } catch {
     return []
   }
