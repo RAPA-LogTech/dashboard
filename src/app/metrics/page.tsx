@@ -1,5 +1,5 @@
-import MetricsPage from '@/components/metrics/MetricsPage'
+import { redirect } from 'next/navigation'
 
 export default function Page() {
-  return <MetricsPage />
+  redirect('/metrics/overview')
 }

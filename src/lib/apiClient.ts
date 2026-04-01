@@ -180,6 +180,19 @@ export async function getInfraMetrics(): Promise<MetricSeries[]> {
   }
 }
 
+export async function getJvmMetrics(): Promise<MetricSeries[]> {
+  try {
+    const response = await fetch('/api/observability/metrics/jvm')
+    if (!response.ok) return []
+    const data = await response.json()
+    if (Array.isArray(data)) return data as MetricSeries[]
+    if (data?.metrics && Array.isArray(data.metrics)) return data.metrics as MetricSeries[]
+    return []
+  } catch {
+    return []
+  }
+}
+
 const readErrorMessage = async (response: Response, fallback: string) => {
   try {
     const errorBody = (await response.json()) as { message?: string }

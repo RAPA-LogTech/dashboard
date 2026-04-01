@@ -13,7 +13,8 @@ interface Props {
 
 function filterSeries(series: MetricSeries[], name: string, envFilter: string) {
   return series.filter(s => {
-    if (!s.name.includes(name)) return false
+    // Support both legacy names(app_jvm_*) and dedicated endpoint names(<service>_jvm_*).
+    if (!(s.name.includes(name) || s.name.endsWith(name.replace('app_', '')))) return false
     if (envFilter === 'all') return true
     const env = (s as MetricSeries & { env?: string }).env
     return env ? env === envFilter : false

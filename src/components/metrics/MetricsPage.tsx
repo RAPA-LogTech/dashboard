@@ -1,10 +1,11 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Box, Chip, Paper, Skeleton, Stack, Tab, Tabs, Typography } from '@mui/material'
 import type { MetricSeries } from '@/lib/types'
-import { apiClient, getContainerMetrics, getHostMetrics } from '@/lib/apiClient'
+import { apiClient, getContainerMetrics, getHostMetrics, getJvmMetrics } from '@/lib/apiClient'
 import NoDataState from '@/components/common/NoDataState'
 import LiveButton from '@/components/logs/LogFilters/LiveButton'
 import { filterByEnv } from './metricsUtils'
@@ -19,11 +20,17 @@ type MetricStreamPayload = {
   points: Array<{ id: string; ts: number; value: number }>
 }
 
-const EMPTY_METRICS: MetricSeries[] = []
-const TABS = ['Overview', 'JVM', 'Database', 'Infra'] as const
+type MetricTabKey = 'overview' | 'jvm' | 'database' | 'infra'
 
-export default function MetricsPage() {
-  const [tab, setTab] = useState(0)
+const EMPTY_METRICS: MetricSeries[] = []
+const TAB_ITEMS: Array<{ key: MetricTabKey; label: string; href: string }> = [
+  { key: 'overview', label: 'Overview', href: '/metrics/overview' },
+  { key: 'jvm', label: 'JVM', href: '/metrics/jvm' },
+  { key: 'database', label: 'Database', href: '/metrics/database' },
+  { key: 'infra', label: 'Infra', href: '/metrics/infra' },
+]
+
+export default function MetricsPage({ currentTab = 'overview' }: { currentTab?: MetricTabKey }) {
   const [envFilter, setEnvFilter] = useState<'all' | 'dev' | 'prod'>('all')
 
   const { data: serviceHealth = [] } = useQuery({
@@ -39,6 +46,15 @@ export default function MetricsPage() {
     queryFn: apiClient.getMetrics,
   })
   const metrics = metricsData ?? EMPTY_METRICS
+
+  const { data: jvmMetricsData = EMPTY_METRICS } = useQuery({
+    queryKey: ['jvm-metrics'],
+    queryFn: getJvmMetrics,
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+    placeholderData: (prev) => prev,
+    enabled: currentTab === 'jvm',
+  })
 
 
   // 컨테이너/호스트 메트릭 분리 패칭
@@ -122,9 +138,10 @@ export default function MetricsPage() {
   }, [isLiveEnabled])
 
   const metricSeries = useMemo(() => (liveMetrics.length > 0 ? liveMetrics : metrics), [liveMetrics, metrics])
+  const activeMetricSeries = currentTab === 'jvm' ? (jvmMetricsData.length > 0 ? jvmMetricsData : metricSeries) : metricSeries
 
-  const error4xxSeries = metricSeries.filter(s => s.name.includes('4xx_ratio') && filterByEnv(s, envFilter))
-  const error5xxSeries = metricSeries.filter(s => s.name.includes('5xx_ratio') && filterByEnv(s, envFilter))
+  const error4xxSeries = activeMetricSeries.filter(s => s.name.includes('4xx_ratio') && filterByEnv(s, envFilter))
+  const error5xxSeries = activeMetricSeries.filter(s => s.name.includes('5xx_ratio') && filterByEnv(s, envFilter))
 
   if (isLoading) {
     return (
@@ -134,7 +151,7 @@ export default function MetricsPage() {
           <Skeleton variant="rounded" width={80} height={28} />
         </Stack>
         <Stack direction="row" gap={0.75}>
-          {TABS.map((_, i) => <Skeleton key={i} variant="rounded" width={80} height={36} />)}
+          {TAB_ITEMS.map((_, i) => <Skeleton key={i} variant="rounded" width={80} height={36} />)}
         </Stack>
         <Paper variant="outlined" sx={{ p: 2, borderColor: 'divider' }}>
           <Skeleton variant="rounded" height={200} />
@@ -143,7 +160,7 @@ export default function MetricsPage() {
     )
   }
 
-  if (isFetched && metricSeries.length === 0) {
+  if (isFetched && activeMetricSeries.length === 0) {
     return (
       <Box>
         <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>Metrics</Typography>
@@ -151,6 +168,8 @@ export default function MetricsPage() {
       </Box>
     )
   }
+
+  const selectedTabIndex = Math.max(TAB_ITEMS.findIndex(item => item.key === currentTab), 0)
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 1.5, sm: 2, md: 3 } }}>
@@ -175,8 +194,7 @@ export default function MetricsPage() {
       </Stack>
 
       <Tabs
-        value={tab}
-        onChange={(_, v) => setTab(v)}
+        value={selectedTabIndex}
         variant="scrollable"
         scrollButtons="auto"
         sx={{
@@ -189,27 +207,35 @@ export default function MetricsPage() {
           '& .MuiTabs-indicator': { display: 'none' },
         }}
       >
-        {TABS.map(t => <Tab key={t} label={t} disableRipple />)}
+        {TAB_ITEMS.map(item => (
+          <Tab
+            key={item.key}
+            label={item.label}
+            component={Link}
+            href={item.href}
+            disableRipple
+          />
+        ))}
       </Tabs>
 
-      {tab === 0 && (
+      {currentTab === 'overview' && (
         <OverviewTab
           serviceHealth={serviceHealth}
           error4xxSeries={error4xxSeries}
           error5xxSeries={error5xxSeries}
           envFilter={envFilter}
-          metricSeries={metricSeries}
+          metricSeries={activeMetricSeries}
         />
       )}
-      {tab === 1 && <JvmTab metricSeries={metricSeries} envFilter={envFilter} />}
-      {tab === 2 && (
+      {currentTab === 'jvm' && <JvmTab metricSeries={activeMetricSeries} envFilter={envFilter} />}
+      {currentTab === 'database' && (
         <DatabaseTab
-          metricSeries={metricSeries}
+          metricSeries={activeMetricSeries}
           envFilter={envFilter}
           serviceHealth={serviceHealth}
         />
       )}
-      {tab === 3 && (
+      {currentTab === 'infra' && (
         <InfraTab
           containerMetrics={containerMetricsData}
           hostMetrics={hostMetricsData}
