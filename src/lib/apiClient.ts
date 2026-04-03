@@ -10,6 +10,7 @@ import {
   SlackIntegrationStatus,
   SlackTestMessageResponse,
   Trace,
+  TraceFilterOptions,
 } from './types'
 
 type PromRangeValue = [number | string, number | string]
@@ -357,6 +358,15 @@ export const apiClient = {
       const response = await fetch(`/api/observability/traces/${traceId}`)
       if (!response.ok) return null
       return (await response.json()) as Trace
+    } catch {
+      return null
+    }
+  },
+  async getTraceFilterOptions(): Promise<TraceFilterOptions | null> {
+    try {
+      const response = await fetch('/api/observability/traces/filters')
+      if (!response.ok) return null
+      return (await response.json()) as TraceFilterOptions
     } catch {
       return null
     }

@@ -78,8 +78,16 @@ export type Trace = {
   duration: number // ms
   status: TraceStatus
   status_code?: number
+  env?: Environment | string | null
   spans: TraceSpan[]
   tags?: { [key: string]: string | number }
+}
+
+export type TraceFilterOptions = {
+  services?: string[]
+  operations?: string[]
+  statuses?: string[]
+  envs?: string[]
 }
 
 // ============ Dashboards & Widgets ============

@@ -57,6 +57,10 @@ export default function TracesPage() {
     isLoading: isTracesLoading,
     isFetched: isTracesFetched,
   } = useQuery({ queryKey: ['traces'], queryFn: apiClient.getTraces })
+  const { data: traceFilterOptionsData } = useQuery({
+    queryKey: ['traceFilterOptions'],
+    queryFn: apiClient.getTraceFilterOptions,
+  })
   const traces = tracesData ?? EMPTY_TRACES
   const [liveTraces, setLiveTraces] = useState<Trace[]>([])
   const [isLiveEnabled, setIsLiveEnabled] = useState(true)
@@ -71,6 +75,8 @@ export default function TracesPage() {
   const [showDependencyGraph, setShowDependencyGraph] = useState(false)
   const [filterService, setFilterService] = useState<string>('all')
   const [filterOperation, setFilterOperation] = useState<string>('all')
+  const [filterStatus, setFilterStatus] = useState<string>('all')
+  const [filterEnvironment, setFilterEnvironment] = useState<string>('all')
   const [chartNow, setChartNow] = useState(() => Math.ceil(Date.now() / 60000) * 60000)
 
   useEffect(() => {
@@ -191,30 +197,66 @@ export default function TracesPage() {
     }
   }, [isLiveEnabled])
 
-  const traceSeries = useMemo(
+  const sourceTraces = useMemo(
     () => (liveTraces.length > 0 ? liveTraces : traces),
     [liveTraces, traces]
   )
 
   const serviceList = useMemo(() => {
+    const apiServices = traceFilterOptionsData?.services ?? []
+    if (apiServices.length > 0) return apiServices
+
     const set = new Set<string>()
-    for (const t of traceSeries) {
+    for (const t of sourceTraces) {
       set.add(t.service)
       for (const s of t.spans) set.add(s.service)
     }
     return Array.from(set).sort()
-  }, [traceSeries])
+  }, [sourceTraces, traceFilterOptionsData])
 
   const operationList = useMemo(() => {
+    const apiOperations = traceFilterOptionsData?.operations ?? []
+    if (apiOperations.length > 0) return apiOperations
+
     const set = new Set<string>()
-    for (const t of traceSeries) {
+    for (const t of sourceTraces) {
       set.add(t.operation)
     }
     return Array.from(set).sort()
-  }, [traceSeries])
+  }, [sourceTraces, traceFilterOptionsData])
 
-  const filteredTraceSeries = useMemo(() => {
-    let result = traceSeries
+  const environmentList = useMemo(() => {
+    const apiEnvs = traceFilterOptionsData?.envs ?? []
+    if (apiEnvs.length > 0) return apiEnvs
+
+    const set = new Set<string>()
+    for (const trace of sourceTraces) {
+      if (typeof trace.env === 'string' && trace.env) {
+        set.add(trace.env)
+      }
+      const traceTagEnv = trace.tags?.['resource.deployment.environment']
+      if (typeof traceTagEnv === 'string' && traceTagEnv) {
+        set.add(traceTagEnv)
+      }
+    }
+    return Array.from(set).sort()
+  }, [sourceTraces, traceFilterOptionsData])
+
+  const statusList = useMemo(() => {
+    const apiStatuses = traceFilterOptionsData?.statuses ?? []
+    if (apiStatuses.length > 0) return apiStatuses
+
+    const set = new Set<string>()
+    for (const trace of sourceTraces) {
+      if (typeof trace.status === 'string' && trace.status) {
+        set.add(trace.status)
+      }
+    }
+    return Array.from(set).sort()
+  }, [sourceTraces, traceFilterOptionsData])
+
+  const filteredTraces = useMemo(() => {
+    let result = sourceTraces
     if (filterService !== 'all') {
       result = result.filter(
         t => t.service === filterService || t.spans.some(s => s.service === filterService)
@@ -223,11 +265,22 @@ export default function TracesPage() {
     if (filterOperation !== 'all') {
       result = result.filter(t => t.operation === filterOperation)
     }
+    if (filterStatus !== 'all') {
+      result = result.filter(trace => trace.status === filterStatus)
+    }
+    if (filterEnvironment !== 'all') {
+      result = result.filter(
+        trace =>
+          trace.env === filterEnvironment ||
+          trace.tags?.['resource.deployment.environment'] === filterEnvironment ||
+          trace.tags?.['deployment.environment'] === filterEnvironment
+      )
+    }
     return result
-  }, [traceSeries, filterService, filterOperation])
+  }, [sourceTraces, filterService, filterOperation, filterStatus, filterEnvironment])
 
   const sortedTraces = useMemo(() => {
-    const cloned = [...filteredTraceSeries]
+    const cloned = [...filteredTraces]
     // Remove duplicates by trace.id
     const uniqueTraces = new Map<string, Trace>()
     for (const trace of cloned) {
@@ -240,7 +293,7 @@ export default function TracesPage() {
       return uniqueArray.sort((a, b) => b.duration - a.duration)
     }
     return uniqueArray.sort((a, b) => b.startTime - a.startTime)
-  }, [filteredTraceSeries, sortKey])
+  }, [filteredTraces, sortKey])
   const hasTraces = sortedTraces.length > 0
 
   const minStart = useMemo(
@@ -570,56 +623,85 @@ export default function TracesPage() {
         </Button>
       </Stack>
 
-      <Box sx={{ display: 'flex', gap: 2 }}>
-        {/* Left Filter Panel */}
+      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
         <Paper
           variant="outlined"
           sx={{
-            width: 260,
-            flexShrink: 0,
             p: 2,
             borderColor: 'divider',
             bgcolor: 'background.paper',
-            display: { xs: 'none', md: 'block' },
           }}
         >
-          <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700, mb: 1.5 }}>
             Find Traces
           </Typography>
+          <Box
+            sx={{
+              display: 'grid',
+              gap: 2,
+              gridTemplateColumns: { xs: '1fr', md: 'repeat(4, minmax(0, 1fr))' },
+            }}
+          >
+            <Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                Service ({serviceList.length})
+              </Typography>
+              <FormControl size="small" fullWidth>
+                <Select value={filterService} onChange={e => setFilterService(e.target.value)}>
+                  <MenuItem value="all">all</MenuItem>
+                  {serviceList.map(s => (
+                    <MenuItem key={s} value={s}>{s}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
 
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-            Service ({serviceList.length})
-          </Typography>
-          <FormControl size="small" fullWidth sx={{ mb: 2 }}>
-            <Select
-              value={filterService}
-              onChange={e => setFilterService(e.target.value)}
-            >
-              <MenuItem value="all">all</MenuItem>
-              {serviceList.map(s => (
-                <MenuItem key={s} value={s}>{s}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+            <Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                Operation ({operationList.length})
+              </Typography>
+              <FormControl size="small" fullWidth>
+                <Select value={filterOperation} onChange={e => setFilterOperation(e.target.value)}>
+                  <MenuItem value="all">all</MenuItem>
+                  {operationList.map(op => (
+                    <MenuItem key={op} value={op}>{op}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
 
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-            Operation ({operationList.length})
-          </Typography>
-          <FormControl size="small" fullWidth sx={{ mb: 2 }}>
-            <Select
-              value={filterOperation}
-              onChange={e => setFilterOperation(e.target.value)}
-            >
-              <MenuItem value="all">all</MenuItem>
-              {operationList.map(op => (
-                <MenuItem key={op} value={op}>{op}</MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+            <Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                Status ({statusList.length})
+              </Typography>
+              <FormControl size="small" fullWidth>
+                <Select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+                  <MenuItem value="all">all</MenuItem>
+                  {statusList.map(status => (
+                    <MenuItem key={status} value={status}>{status}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+
+            <Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                Environment ({environmentList.length})
+              </Typography>
+              <FormControl size="small" fullWidth>
+                <Select value={filterEnvironment} onChange={e => setFilterEnvironment(e.target.value)}>
+                  <MenuItem value="all">all</MenuItem>
+                  {environmentList.map(env => (
+                    <MenuItem key={env} value={env}>{env}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+          </Box>
         </Paper>
 
         {/* Right Content */}
-        <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: { xs: 1.5, sm: 2, md: 3 } }}>
+        <Box sx={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: { xs: 1.5, sm: 2, md: 3 } }}>
 
       <Paper
         variant="outlined"
