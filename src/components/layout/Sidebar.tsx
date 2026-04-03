@@ -19,8 +19,6 @@ import {
   Description as DescriptionIcon,
   CallSplit as TracesIcon,
   BarChart as BarChartIcon,
-  Dashboard as GridIcon,
-  Settings as SettingsIcon,
   Chat as ChatIcon,
   Notifications as NotificationsIcon,
   MenuBook as RunbookIcon,
@@ -42,11 +40,9 @@ const navGroups = [
   {
     label: 'Configuration',
     items: [
-      { label: 'Dashboards', href: '/dashboards', icon: GridIcon },
       { label: 'Reports', href: '/reports', icon: ReportsIcon },
       { label: 'Runbooks', href: '/runbooks', icon: RunbookIcon },
       { label: 'Notifications', href: '/notifications', icon: NotificationsIcon },
-      { label: 'Settings', href: '/settings', icon: SettingsIcon },
     ],
   },
 ]
@@ -78,7 +74,7 @@ export default function Sidebar({
       {/* Navigation */}
       <Box sx={{ flex: 1, overflowY: 'auto', p: 2 }}>
         {navGroups.map((group, idx) => (
-          <Box key={group.label} sx={{ mb: 4 }}>
+          <Box key={group.label} sx={{ mb: 2 }}>
             <ListSubheader
               sx={{
                 fontSize: '0.75rem',
@@ -91,7 +87,7 @@ export default function Sidebar({
                 borderRadius: 1,
                 px: 2,
                 py: 0.6,
-                mb: 1,
+                mb: 0.5,
               }}
             >
               {group.label}
