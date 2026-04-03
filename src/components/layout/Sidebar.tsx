@@ -40,7 +40,6 @@ const navGroups = [
   {
     label: 'Configuration',
     items: [
-      { label: 'Reports', href: '/reports', icon: ReportsIcon },
       { label: 'Runbooks', href: '/runbooks', icon: RunbookIcon },
       { label: 'Notifications', href: '/notifications', icon: NotificationsIcon },
     ],

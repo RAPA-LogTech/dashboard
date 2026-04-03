@@ -1,9 +1,21 @@
 'use client'
 
 import { Box, Chip, Typography, useTheme } from '@mui/material'
-import { Area, AreaChart, ResponsiveContainer, YAxis } from 'recharts'
+import { Area, AreaChart, ResponsiveContainer, Tooltip, YAxis } from 'recharts'
 import type { MetricSeries } from '@/lib/types'
 import { sliceLast5Min } from './metricsUtils'
+
+const formatTooltipTime = (value: unknown, payload?: Array<{ payload?: { ts?: number } }>) => {
+  const ts = payload?.[0]?.payload?.ts
+  const target = typeof ts === 'number' ? ts : typeof value === 'number' ? value : null
+  if (target == null) return '-'
+  return new Date(target).toLocaleTimeString('ko-KR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  })
+}
 
 export function StatusBadge({ value }: { value: number }) {
   const isWarn = value > 1
@@ -50,7 +62,7 @@ export function MiniSparkline({ series, color }: { series: MetricSeries; color: 
   const min = Math.min(...values)
   const max = Math.max(...values)
   const spread = Math.max(1, max - min)
-  const data = points.map((p, i) => ({ i, v: p.value }))
+  const data = points.map((p, i) => ({ i, ts: p.ts, v: p.value }))
   return (
     <Box sx={{ height: 48, width: '100%', mt: 1 }}>
       <ResponsiveContainer width="100%" height="100%">
@@ -62,6 +74,15 @@ export function MiniSparkline({ series, color }: { series: MetricSeries; color: 
             </linearGradient>
           </defs>
           <YAxis hide domain={[Math.max(0, min - spread * 0.1), max + spread * 0.1]} />
+          <Tooltip
+            cursor={false}
+            isAnimationActive={false}
+            labelFormatter={(label, payload) => formatTooltipTime(label, payload as Array<{ payload?: { ts?: number } }>)}
+            formatter={(value) => [Number(value ?? 0).toFixed(2), '값']}
+            contentStyle={{ fontSize: 11, padding: '6px 8px', borderRadius: 6 }}
+            labelStyle={{ fontSize: 11, marginBottom: 4 }}
+            itemStyle={{ fontSize: 11, padding: 0 }}
+          />
           <Area type="monotone" dataKey="v" stroke={color} fill={`url(#sg-${series.id})`} strokeWidth={1.5} dot={false} isAnimationActive={false} />
         </AreaChart>
       </ResponsiveContainer>

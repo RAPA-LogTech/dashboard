@@ -1,11 +1,29 @@
 'use client'
 
 import { Box, Paper, Stack, Typography, useTheme } from '@mui/material'
-import { Line, LineChart, ResponsiveContainer, YAxis } from 'recharts'
+import { Line, LineChart, ResponsiveContainer, Tooltip, YAxis } from 'recharts'
 import type { MetricSeries } from '@/lib/types'
 import NoDataState from '@/components/common/NoDataState'
 import { getSeriesLast, sliceLast5Min, filterByEnv } from '../metricsUtils'
 import { EnvBadge, SectionLabel, StatusBadge } from '../MetricsShared'
+
+const formatTooltipTime = (value: unknown, payload?: Array<{ payload?: { ts?: number } }>) => {
+  const ts = payload?.[0]?.payload?.ts
+  const target = typeof ts === 'number' ? ts : typeof value === 'number' ? value : null
+  if (target == null) return '-'
+  return new Date(target).toLocaleTimeString('ko-KR', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  })
+}
+
+const compactTooltipSx = {
+  contentStyle: { fontSize: 11, padding: '6px 8px', borderRadius: 6 },
+  labelStyle: { fontSize: 11, marginBottom: 4 },
+  itemStyle: { fontSize: 11, padding: 0 },
+}
 
 type ServiceHealth = { service: string; env?: string; error_rate: number; rds_cpu?: number; rds_connections?: number; rds_freeable_memory?: number; rds_read_latency?: number; rds_write_latency?: number }
 
@@ -89,9 +107,24 @@ export default function OverviewTab(props: Props) {
                               const p4 = sliceLast5Min(s4xx?.points ?? [])
                               const p5 = sliceLast5Min(s5xx?.points ?? [])
                               const len = Math.max(p4.length, p5.length)
-                              return Array.from({ length: len }, (_, i) => ({ i, v4xx: p4[i]?.value ?? null, v5xx: p5[i]?.value ?? null }))
+                              return Array.from({ length: len }, (_, i) => ({
+                                i,
+                                ts: p4[i]?.ts ?? p5[i]?.ts ?? null,
+                                v4xx: p4[i]?.value ?? null,
+                                v5xx: p5[i]?.value ?? null,
+                              }))
                             })()} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
                               <YAxis hide domain={[0, 'auto']} />
+                              <Tooltip
+                                cursor={false}
+                                isAnimationActive={false}
+                                labelFormatter={(label, payload) => formatTooltipTime(label, payload as Array<{ payload?: { ts?: number } }>)}
+                                formatter={(value, name) => [
+                                  `${Number(value ?? 0).toFixed(2)}%`,
+                                  name,
+                                ]}
+                                {...compactTooltipSx}
+                              />
                               <Line type="monotone" dataKey="v4xx" name="4xx" stroke={theme.palette.warning.main} strokeWidth={1.5} dot={false} isAnimationActive={false} connectNulls />
                               <Line type="monotone" dataKey="v5xx" name="5xx" stroke={theme.palette.error.main} strokeWidth={1.5} dot={false} isAnimationActive={false} connectNulls />
                             </LineChart>
@@ -128,6 +161,13 @@ export default function OverviewTab(props: Props) {
                     {s && <ResponsiveContainer width="100%" height={40}>
                       <LineChart data={sliceLast5Min(s.points)} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
                         <YAxis hide domain={[0, 'auto']} />
+                        <Tooltip
+                          cursor={false}
+                          isAnimationActive={false}
+                          labelFormatter={(label, payload) => formatTooltipTime(label, payload as Array<{ payload?: { ts?: number } }>)}
+                          formatter={(value) => [`${Number(value ?? 0).toFixed(2)}ms`, 'p95']}
+                          {...compactTooltipSx}
+                        />
                         <Line type="monotone" dataKey="value" stroke={theme.palette.warning.main} strokeWidth={1.5} dot={false} isAnimationActive={false} connectNulls />
                       </LineChart>
                     </ResponsiveContainer>}
@@ -165,6 +205,13 @@ export default function OverviewTab(props: Props) {
                       {cpu && <ResponsiveContainer width="100%" height={32}>
                         <LineChart data={sliceLast5Min(cpu.points)} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
                           <YAxis hide domain={[0, 'auto']} />
+                          <Tooltip
+                            cursor={false}
+                            isAnimationActive={false}
+                            labelFormatter={(label, payload) => formatTooltipTime(label, payload as Array<{ payload?: { ts?: number } }>)}
+                            formatter={(value) => [`${Number(value ?? 0).toFixed(2)}%`, 'CPU']}
+                            {...compactTooltipSx}
+                          />
                           <Line type="monotone" dataKey="value" stroke={theme.palette.success.main} strokeWidth={1.5} dot={false} isAnimationActive={false} connectNulls />
                         </LineChart>
                       </ResponsiveContainer>}
@@ -175,6 +222,13 @@ export default function OverviewTab(props: Props) {
                       {mem && <ResponsiveContainer width="100%" height={32}>
                         <LineChart data={sliceLast5Min(mem.points)} margin={{ top: 2, right: 0, left: 0, bottom: 0 }}>
                           <YAxis hide domain={[0, 'auto']} />
+                          <Tooltip
+                            cursor={false}
+                            isAnimationActive={false}
+                            labelFormatter={(label, payload) => formatTooltipTime(label, payload as Array<{ payload?: { ts?: number } }>)}
+                            formatter={(value) => [`${Number(value ?? 0).toFixed(2)}%`, 'MEM']}
+                            {...compactTooltipSx}
+                          />
                           <Line type="monotone" dataKey="value" stroke={theme.palette.secondary.main} strokeWidth={1.5} dot={false} isAnimationActive={false} connectNulls />
                         </LineChart>
                       </ResponsiveContainer>}

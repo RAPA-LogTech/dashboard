@@ -7,7 +7,7 @@ import { Box, Chip, Paper, Skeleton, Stack, Tab, Tabs, Typography } from '@mui/m
 import type { MetricSeries } from '@/lib/types'
 import { apiClient, getDatabaseMetrics, getJvmMetrics, getRdsMetrics } from '@/lib/apiClient'
 import LiveButton from '@/components/logs/LogFilters/LiveButton'
-import { filterByEnv } from './metricsUtils'
+import { filterByEnv, sliceLast5Min } from './metricsUtils'
 import OverviewTab from './tabs/OverviewTab'
 import JvmTab from './tabs/JvmTab'
 import DatabaseTab from './tabs/DatabaseTab'
@@ -96,7 +96,10 @@ export default function MetricsPage({ currentTab = 'overview' }: { currentTab?: 
         const next = map.get(s.id)
         if (!next) return s
         const pts = [...s.points, { ts: next.ts, value: next.value }]
-        return { ...s, points: pts.length > MAX_POINTS ? pts.slice(pts.length - MAX_POINTS) : pts }
+        // 시간 순으로 정렬 후 5분 필터링 적용
+        const sorted = pts.sort((a, b) => a.ts - b.ts)
+        const filtered = sorted.length > 0 ? sliceLast5Min(sorted) : sorted
+        return { ...s, points: filtered.length > MAX_POINTS ? filtered.slice(filtered.length - MAX_POINTS) : filtered }
       }))
       lastCursorRef.current = Math.max(lastCursorRef.current, payload.cursor ?? 0)
     }
