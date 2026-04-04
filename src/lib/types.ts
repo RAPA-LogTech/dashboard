@@ -254,6 +254,32 @@ export type SlackTestMessageResponse = {
   sentAt: string
 }
 
+export type SlackChannelUpdatePayload = {
+  channelId: string
+  channelName?: string
+  sendTestMessage?: boolean
+}
+
+export type SlackChannelUpdateResponse = {
+  ok: boolean
+  updatedAt: string
+  channelId: string
+  channelName?: string
+}
+
+export type SlackChannelListItem = {
+  id: string
+  name: string
+  isPrivate: boolean
+  isMember: boolean
+}
+
+export type SlackChannelListResponse = {
+  ok: boolean
+  channels: SlackChannelListItem[]
+  error?: string
+}
+
 // ============ AI Chat ============
 
 export type AiMessageRole = 'user' | 'assistant' | 'system'

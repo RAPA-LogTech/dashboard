@@ -8,6 +8,10 @@ import {
   ReportType,
   RunbookItem,
   SlackIntegrationStatus,
+  SlackChannelUpdatePayload,
+  SlackChannelUpdateResponse,
+  SlackChannelListItem,
+  SlackChannelListResponse,
   SlackTestMessageResponse,
   Trace,
   TraceFilterOptions,
@@ -392,6 +396,7 @@ export const apiClient = {
   async sendSlackTestMessage(payload: { text: string }) {
     const response = await fetch('/api/integrations/slack/test', {
       method: 'POST',
+      cache: 'no-store',
       headers: {
         'Content-Type': 'application/json',
       },
@@ -405,7 +410,9 @@ export const apiClient = {
     return (await response.json()) as SlackTestMessageResponse
   },
   async getSlackIntegration() {
-    const response = await fetch('/api/integrations/slack')
+    const response = await fetch('/api/integrations/slack', {
+      cache: 'no-store',
+    })
 
     if (!response.ok) {
       throw new Error(await readErrorMessage(response, 'Slack 연동 정보 조회에 실패했습니다.'))
@@ -413,9 +420,34 @@ export const apiClient = {
 
     return (await response.json()) as SlackIntegrationStatus
   },
+  async updateSlackIntegrationChannel(payload: SlackChannelUpdatePayload) {
+    const response = await fetch('/api/integrations/slack', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    })
+
+    if (!response.ok) {
+      throw new Error(await readErrorMessage(response, 'Slack 채널 업데이트에 실패했습니다.'))
+    }
+
+    return (await response.json()) as SlackChannelUpdateResponse
+  },
+  async getSlackChannels() {
+    const response = await fetch('/api/integrations/slack/channels')
+
+    if (!response.ok) {
+      throw new Error(await readErrorMessage(response, 'Slack 채널 목록 조회에 실패했습니다.'))
+    }
+
+    return (await response.json()) as SlackChannelListResponse
+  },
   async disconnectSlackIntegration() {
     const response = await fetch('/api/integrations/slack', {
       method: 'DELETE',
+      cache: 'no-store',
     })
 
     if (!response.ok) {

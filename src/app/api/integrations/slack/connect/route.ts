@@ -1,38 +1,35 @@
 import { cookies } from 'next/headers'
-import { getSlackOAuthConfig, isSlackOAuthConfigured } from '@/lib/slackIntegrationStore'
+import { getSlackOAuthConfigFromSecretOrEnv } from '@/lib/slackOAuthConfigSecret'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 const oauthStateCookieName = 'slack_oauth_state'
 
-const getAppOrigin = (request: Request) => {
-  const configuredRedirectUri = process.env.SLACK_REDIRECT_URI?.trim()
-
-  if (configuredRedirectUri) {
-    return new URL(configuredRedirectUri).origin
-  }
-
-  return new URL(request.url).origin
-}
-
-const getRedirectUri = (request: Request) => {
-  const configured = process.env.SLACK_REDIRECT_URI?.trim()
+const getRedirectUri = (request: Request, redirectUri?: string) => {
+  const configured = redirectUri?.trim()
 
   if (configured) {
     return configured
   }
 
-  const url = new URL(request.url)
-  return `${url.origin}/api/integrations/slack/callback`
+  const configuredDashboardUrl = process.env.PUBLIC_DASHBOARD_URL?.trim()
+  const baseOrigin = (() => {
+    if (configuredDashboardUrl) {
+      try {
+        return new URL(configuredDashboardUrl).origin
+      } catch {
+        // fall through
+      }
+    }
+    return new URL(request.url).origin ?? 'http://localhost:3000'
+  })()
+
+  return `${baseOrigin}/api/integrations/slack/callback`
 }
 
 export async function GET(request: Request) {
-  if (!isSlackOAuthConfigured()) {
-    return Response.redirect(
-      new URL('/integrations/slack?slack=not-configured', getAppOrigin(request))
-    )
-  }
+  const config = await getSlackOAuthConfigFromSecretOrEnv()
 
   const state = crypto.randomUUID()
   const cookieStore = await cookies()
@@ -44,12 +41,11 @@ export async function GET(request: Request) {
     path: '/',
   })
 
-  const config = getSlackOAuthConfig()
   const authorizeUrl = new URL('https://slack.com/oauth/v2/authorize')
   authorizeUrl.searchParams.set('client_id', config.clientId)
   authorizeUrl.searchParams.set('scope', config.scopes.join(','))
   authorizeUrl.searchParams.set('state', state)
-  authorizeUrl.searchParams.set('redirect_uri', getRedirectUri(request))
+  authorizeUrl.searchParams.set('redirect_uri', getRedirectUri(request, config.redirectUri))
 
   return Response.redirect(authorizeUrl)
 }

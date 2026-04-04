@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { useEffect, useMemo, useState } from 'react'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Alert,
   Box,
@@ -12,6 +12,7 @@ import {
   CardContent,
   Chip,
   Divider,
+  Link as MuiLink,
   Skeleton,
   Stack,
   Typography,
@@ -23,6 +24,7 @@ import NoDataState from '@/components/common/NoDataState'
 
 export default function NotificationsPage() {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const notificationsQuery = useQuery({
     queryKey: ['notifications-page'],
     queryFn: apiClient.getNotifications,
@@ -34,8 +36,31 @@ export default function NotificationsPage() {
 
   const disconnectSlackMutation = useMutation({
     mutationFn: () => apiClient.disconnectSlackIntegration(),
-    onSuccess: () => {
-      integrationQuery.refetch()
+    onSuccess: async () => {
+      queryClient.setQueryData(['notifications-slack-integration-status'], (prev: unknown) => {
+        if (!prev || typeof prev !== 'object') {
+          return prev
+        }
+
+        return {
+          ...(prev as Record<string, unknown>),
+          connected: false,
+          teamId: undefined,
+          teamName: undefined,
+          channelId: undefined,
+          channelName: undefined,
+          webhookUrlMasked: undefined,
+          installedBy: undefined,
+          installedAt: undefined,
+          updatedAt: new Date().toISOString(),
+        }
+      })
+
+      await queryClient.invalidateQueries({ queryKey: ['notifications-slack-integration-status'] })
+      await integrationQuery.refetch()
+    },
+    onError: (error) => {
+      console.error('Slack 연동 해제 실패:', error)
     },
   })
 
@@ -447,8 +472,23 @@ export default function NotificationsPage() {
                         <Typography variant="body2" sx={{ fontWeight: 700 }}>
                           Slack 연동됨
                         </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {integrationQuery.data?.channelName}
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'inline-flex', gap: 0.5, alignItems: 'center' }}>
+                          <Box component="span" sx={{ fontWeight: 700, color: 'text.primary' }}>
+                            {integrationQuery.data?.teamName || integrationQuery.data?.teamId || '워크스페이스'}
+                          </Box>
+                          <Box component="span">·</Box>
+                          {integrationQuery.data?.teamId && integrationQuery.data?.channelId ? (
+                            <MuiLink
+                              href={`https://app.slack.com/client/${integrationQuery.data.teamId}/${integrationQuery.data.channelId}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              sx={{ textDecoration: 'underline' }}
+                            >
+                              {integrationQuery.data?.channelName || integrationQuery.data?.channelId}
+                            </MuiLink>
+                          ) : (
+                            integrationQuery.data?.channelName || integrationQuery.data?.channelId || '채널 미설정'
+                          )}
                         </Typography>
                       </Box>
                     </Stack>
@@ -465,14 +505,42 @@ export default function NotificationsPage() {
                       <Button
                         variant="outlined"
                         size="small"
+                        onClick={() => {
+                          if (window.confirm('연동을 초기화하고 새로 연동하시겠습니까?')) {
+                            disconnectSlackMutation.mutate()
+                            setTimeout(() => {
+                              window.location.href = '/api/integrations/slack/connect'
+                            }, 500)
+                          }
+                        }}
+                        disabled={disconnectSlackMutation.isPending}
+                        sx={{ textTransform: 'none' }}
+                      >
+                        {disconnectSlackMutation.isPending ? '수정 중...' : '채널 수정'}
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        size="small"
                         color="error"
                         onClick={() => disconnectSlackMutation.mutate()}
                         disabled={disconnectSlackMutation.isPending}
                         sx={{ textTransform: 'none' }}
                       >
-                        해제
+                        {disconnectSlackMutation.isPending ? '해제 중...' : '해제'}
                       </Button>
                     </Stack>
+                    {disconnectSlackMutation.isError && (
+                      <Alert severity="error" sx={{ mt: 1 }}>
+                        {disconnectSlackMutation.error instanceof Error
+                          ? disconnectSlackMutation.error.message
+                          : 'Slack 연동 해제에 실패했습니다.'}
+                      </Alert>
+                    )}
+                    {disconnectSlackMutation.isSuccess && (
+                      <Alert severity="success" sx={{ mt: 1 }}>
+                        Slack 연동이 해제되었습니다.
+                      </Alert>
+                    )}
                   </Stack>
                 </Box>
               )}

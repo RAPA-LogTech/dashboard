@@ -1,47 +1,33 @@
 import { cookies } from 'next/headers'
 import {
   getMaskedWebhookUrl,
-  getSlackOAuthConfig,
   setSlackInstallation,
 } from '@/lib/slackIntegrationStore'
 import { writePersistedSlackInstallation } from '@/lib/slackInstallationPersistence'
+import { getSlackOAuthConfigFromSecretOrEnv } from '@/lib/slackOAuthConfigSecret'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 const oauthStateCookieName = 'slack_oauth_state'
 
-async function saveToSecretsManager(payload: {
-  bot_token: string
-  channel_id: string
-  channel_name: string
-  webhook_url: string
-  team_name: string
-}) {
-  const secretArn = process.env.SLACK_SECRET_ARN?.trim()
-  if (!secretArn) return
-
-  try {
-    const { SecretsManagerClient, PutSecretValueCommand } = await import('@aws-sdk/client-secrets-manager')
-    const client = new SecretsManagerClient({ region: process.env.AWS_REGION ?? 'ap-northeast-2' })
-    await client.send(new PutSecretValueCommand({
-      SecretId: secretArn,
-      SecretString: JSON.stringify(payload),
-    }))
-    console.log('[slack/callback] Secrets Manager 저장 완료')
-  } catch (e) {
-    console.error('[slack/callback] Secrets Manager 저장 실패:', e)
-  }
-}
-
-const getAppOrigin = (request: Request) => {
-  const configuredRedirectUri = process.env.SLACK_REDIRECT_URI?.trim()
+const getAppOrigin = (request: Request, redirectUri?: string) => {
+  const configuredRedirectUri = redirectUri?.trim()
 
   if (configuredRedirectUri) {
     return new URL(configuredRedirectUri).origin
   }
 
-  return new URL(request.url).origin
+  const configuredDashboardUrl = process.env.PUBLIC_DASHBOARD_URL?.trim()
+  if (configuredDashboardUrl) {
+    try {
+      return new URL(configuredDashboardUrl).origin
+    } catch {
+      // fall through
+    }
+  }
+
+  return new URL(request.url).origin ?? 'http://localhost:3000'
 }
 
 type SlackOAuthResponse = {
@@ -63,19 +49,35 @@ type SlackOAuthResponse = {
   }
 }
 
-const getRedirectUri = (request: Request) => {
-  const configured = process.env.SLACK_REDIRECT_URI?.trim()
+const getRedirectUri = (request: Request, redirectUri?: string) => {
+  const configured = redirectUri?.trim()
 
   if (configured) {
     return configured
   }
 
-  const url = new URL(request.url)
-  return `${url.origin}/api/integrations/slack/callback`
+  const configuredDashboardUrl = process.env.PUBLIC_DASHBOARD_URL?.trim()
+  const baseOrigin = (() => {
+    if (configuredDashboardUrl) {
+      try {
+        return new URL(configuredDashboardUrl).origin
+      } catch {
+        // fall through
+      }
+    }
+    return new URL(request.url).origin ?? 'http://localhost:3000'
+  })()
+
+  return `${baseOrigin}/api/integrations/slack/callback`
 }
 
-const redirectToIntegrationPage = (request: Request, status: string, details?: string) => {
-  const url = new URL('/integrations/slack', getAppOrigin(request))
+const redirectToNotificationsPage = (
+  request: Request,
+  redirectUri: string,
+  status: string,
+  details?: string
+) => {
+  const url = new URL('/notifications', getAppOrigin(request, redirectUri))
   url.searchParams.set('slack', status)
 
   if (details) {
@@ -86,6 +88,9 @@ const redirectToIntegrationPage = (request: Request, status: string, details?: s
 }
 
 export async function GET(request: Request) {
+  const config = await getSlackOAuthConfigFromSecretOrEnv()
+  const redirectUri = config.redirectUri
+
   const url = new URL(request.url)
   const state = url.searchParams.get('state') ?? ''
   const code = url.searchParams.get('code') ?? ''
@@ -95,18 +100,17 @@ export async function GET(request: Request) {
   cookieStore.delete(oauthStateCookieName)
 
   if (authError) {
-    return redirectToIntegrationPage(request, 'cancelled', authError)
+    return redirectToNotificationsPage(request, redirectUri, 'cancelled', authError)
   }
 
   if (!state || !savedState || state !== savedState) {
-    return redirectToIntegrationPage(request, 'state-error')
+    return redirectToNotificationsPage(request, redirectUri, 'state-error')
   }
 
   if (!code) {
-    return redirectToIntegrationPage(request, 'missing-code')
+    return redirectToNotificationsPage(request, redirectUri, 'missing-code')
   }
 
-  const config = getSlackOAuthConfig()
   const response = await fetch('https://slack.com/api/oauth.v2.access', {
     method: 'POST',
     headers: {
@@ -116,14 +120,19 @@ export async function GET(request: Request) {
       client_id: config.clientId,
       client_secret: config.clientSecret,
       code,
-      redirect_uri: getRedirectUri(request),
+      redirect_uri: getRedirectUri(request, redirectUri),
     }),
   })
 
   const data = (await response.json()) as SlackOAuthResponse
 
   if (!response.ok || !data.ok) {
-    return redirectToIntegrationPage(request, 'oauth-error', data.error ?? response.statusText)
+    return redirectToNotificationsPage(
+      request,
+      redirectUri,
+      'oauth-error',
+      data.error ?? response.statusText
+    )
   }
 
   const webhookUrl = data.incoming_webhook?.url
@@ -148,13 +157,5 @@ export async function GET(request: Request) {
 
   await writePersistedSlackInstallation(installation)
 
-  await saveToSecretsManager({
-    bot_token: data.access_token ?? '',
-    channel_id: data.incoming_webhook?.channel_id ?? '',
-    channel_name: data.incoming_webhook?.channel ?? '',
-    webhook_url: webhookUrl ?? '',
-    team_name: data.team?.name ?? '',
-  })
-
-  return redirectToIntegrationPage(request, 'connected')
+  return redirectToNotificationsPage(request, redirectUri, 'connected')
 }

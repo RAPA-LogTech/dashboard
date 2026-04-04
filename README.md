@@ -11,7 +11,14 @@ SLACK_CLIENT_ID=...
 SLACK_CLIENT_SECRET=...
 SLACK_SIGNING_SECRET=...
 SLACK_REDIRECT_URI=https://free-olives-hunt.loca.lt/api/integrations/slack/callback
-SLACK_BOT_SCOPES=incoming-webhook,chat:write
+# Slack Bot Scopes (쉼표 구분): 
+# - incoming-webhook: Webhook URL 기반 메시지 발송
+# - chat:write: chat.postMessage API로 메시지 발송
+# - channels:read: 공개 채널 목록 조회
+# - channels:history: 공개 채널 메시지 히스토리 조회
+# - groups:read: 비공개 채널 목록 조회
+# - groups:history: 비공개 채널 메시지 히스토리 조회
+SLACK_BOT_SCOPES=incoming-webhook,chat:write,channels:read,channels:history,groups:read,groups:history
 ```
 
 Slack 앱 설정에서 위 callback URL을 OAuth Redirect URL로 등록해야 합니다.

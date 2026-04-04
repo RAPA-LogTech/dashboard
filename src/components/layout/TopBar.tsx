@@ -115,7 +115,7 @@ export default function TopBar({ onMenuClick, showMenuButton = false }: TopBarPr
     if (notification.source === 'metrics') return '/metrics'
     if (notification.source === 'logs' || notification.source === 'alerts') return '/logs'
     if (notification.source === 'traces') return '/traces'
-    if (notification.source === 'integrations') return '/integrations/slack'
+    if (notification.source === 'integrations') return '/notifications'
     if (notification.source === 'deploy') return '/dashboards'
 
     return '/'
