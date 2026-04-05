@@ -1,161 +1,79 @@
-import { cookies } from 'next/headers'
-import {
-  getMaskedWebhookUrl,
-  setSlackInstallation,
-} from '@/lib/slackIntegrationStore'
-import { writePersistedSlackInstallation } from '@/lib/slackInstallationPersistence'
-import { getSlackOAuthConfigFromSecretOrEnv } from '@/lib/slackOAuthConfigSecret'
-
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-const oauthStateCookieName = 'slack_oauth_state'
+const ALERT_SERVICE_URL = process.env.ALERT_SERVICE_URL || 'http://localhost:8082'
 
-const getAppOrigin = (request: Request, redirectUri?: string) => {
-  const configuredRedirectUri = redirectUri?.trim()
-
-  if (configuredRedirectUri) {
-    return new URL(configuredRedirectUri).origin
-  }
-
-  const configuredDashboardUrl = process.env.PUBLIC_DASHBOARD_URL?.trim()
-  if (configuredDashboardUrl) {
-    try {
-      return new URL(configuredDashboardUrl).origin
-    } catch {
-      // fall through
-    }
-  }
-
-  return new URL(request.url).origin ?? 'http://localhost:3000'
-}
-
-type SlackOAuthResponse = {
-  ok?: boolean
-  error?: string
-  access_token?: string
-  scope?: string
-  team?: {
-    id?: string
-    name?: string
-  }
-  authed_user?: {
-    id?: string
-  }
-  incoming_webhook?: {
-    channel?: string
-    channel_id?: string
-    url?: string
-  }
-}
-
-const getRedirectUri = (request: Request, redirectUri?: string) => {
-  const configured = redirectUri?.trim()
-
+function getPublicOrigin(request: Request): string {
+  const configured = process.env.PUBLIC_DASHBOARD_URL?.trim()
   if (configured) {
-    return configured
+    return configured.replace(/\/$/, '')
   }
 
-  const configuredDashboardUrl = process.env.PUBLIC_DASHBOARD_URL?.trim()
-  const baseOrigin = (() => {
-    if (configuredDashboardUrl) {
-      try {
-        return new URL(configuredDashboardUrl).origin
-      } catch {
-        // fall through
-      }
-    }
-    return new URL(request.url).origin ?? 'http://localhost:3000'
-  })()
-
-  return `${baseOrigin}/api/integrations/slack/callback`
-}
-
-const redirectToNotificationsPage = (
-  request: Request,
-  redirectUri: string,
-  status: string,
-  details?: string
-) => {
-  const url = new URL('/notifications', getAppOrigin(request, redirectUri))
-  url.searchParams.set('slack', status)
-
-  if (details) {
-    url.searchParams.set('details', details)
+  const proto = request.headers.get('x-forwarded-proto')
+  const host = request.headers.get('x-forwarded-host') || request.headers.get('host')
+  if (proto && host) {
+    return `${proto}://${host}`
   }
 
-  return Response.redirect(url)
+  return new URL(request.url).origin
 }
 
 export async function GET(request: Request) {
-  const config = await getSlackOAuthConfigFromSecretOrEnv()
-  const redirectUri = config.redirectUri
+  try {
+    const url = new URL(request.url)
+    const origin = getPublicOrigin(request)
+    const code = url.searchParams.get('code')
+    const state = url.searchParams.get('state')
+    const error = url.searchParams.get('error')
 
-  const url = new URL(request.url)
-  const state = url.searchParams.get('state') ?? ''
-  const code = url.searchParams.get('code') ?? ''
-  const authError = url.searchParams.get('error') ?? ''
-  const cookieStore = await cookies()
-  const savedState = cookieStore.get(oauthStateCookieName)?.value ?? ''
-  cookieStore.delete(oauthStateCookieName)
+    if (error) {
+      return Response.redirect(
+        new URL(`/notifications?slack=cancelled&error=${error}`, origin).toString()
+      )
+    }
 
-  if (authError) {
-    return redirectToNotificationsPage(request, redirectUri, 'cancelled', authError)
-  }
+    if (!code || !state) {
+      return Response.redirect(
+        new URL('/notifications?slack=missing-code', origin).toString()
+      )
+    }
 
-  if (!state || !savedState || state !== savedState) {
-    return redirectToNotificationsPage(request, redirectUri, 'state-error')
-  }
+    // alert-service의 OAuth callback 엔드포인트 호출
+    const callbackUrl = new URL(`${ALERT_SERVICE_URL}/v1/slack/oauth/callback`)
+    callbackUrl.searchParams.set('code', code)
+    callbackUrl.searchParams.set('state', state)
 
-  if (!code) {
-    return redirectToNotificationsPage(request, redirectUri, 'missing-code')
-  }
+    const response = await fetch(callbackUrl.toString(), {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
 
-  const response = await fetch('https://slack.com/api/oauth.v2.access', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: new URLSearchParams({
-      client_id: config.clientId,
-      client_secret: config.clientSecret,
-      code,
-      redirect_uri: getRedirectUri(request, redirectUri),
-    }),
-  })
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      const errorObj = errorData as Record<string, unknown>
+      const errorMsg: string = typeof errorObj.detail === 'string'
+        ? errorObj.detail
+        : 'Unknown error'
+      return Response.redirect(
+        new URL(
+          `/notifications?slack=oauth-error&details=${encodeURIComponent(errorMsg)}`,
+          origin
+        ).toString()
+      )
+    }
 
-  const data = (await response.json()) as SlackOAuthResponse
-
-  if (!response.ok || !data.ok) {
-    return redirectToNotificationsPage(
-      request,
-      redirectUri,
-      'oauth-error',
-      data.error ?? response.statusText
+    // 성공적으로 연동됨
+    return Response.redirect(new URL('/notifications?slack=connected', origin).toString())
+  } catch (error) {
+    console.error('[slackCallback] Error:', error)
+    return Response.json(
+      {
+        ok: false,
+        message: 'Slack OAuth 콜백 처리에 실패했습니다.',
+      },
+      { status: 500 }
     )
   }
-
-  const webhookUrl = data.incoming_webhook?.url
-  const scopeList =
-    data.scope
-      ?.split(',')
-      .map(scope => scope.trim())
-      .filter(Boolean) ?? config.scopes
-
-  const installation = setSlackInstallation({
-    teamId: data.team?.id,
-    teamName: data.team?.name,
-    channelId: data.incoming_webhook?.channel_id,
-    channelName: data.incoming_webhook?.channel,
-    webhookUrl,
-    botAccessToken: data.access_token,
-    webhookUrlMasked: getMaskedWebhookUrl(webhookUrl),
-    installedBy: data.authed_user?.id,
-    installedAt: new Date().toISOString(),
-    scopes: scopeList,
-  })
-
-  await writePersistedSlackInstallation(installation)
-
-  return redirectToNotificationsPage(request, redirectUri, 'connected')
 }

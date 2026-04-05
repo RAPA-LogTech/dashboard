@@ -7,8 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DEPLOY_DIR="$(dirname "$SCRIPT_DIR")"
 
 IMAGE="gurururu/logtech-dashboard:latest"
-SERVER_IP="43.203.54.34"
-SERVER="ubuntu@43.203.54.34"
+SERVER="ubuntu@52.79.176.78"
 SSH_KEY="$HOME/keys/log-platform-key-v6.pem"
 
 # 1. 빌드 + 푸시
@@ -36,4 +35,4 @@ ssh -i $SSH_KEY -o StrictHostKeyChecking=no $SERVER "
   sudo docker compose -f dashboard-compose.yml up -d dashboard
 "
 
-echo "✅ 배포 완료! http://$SERVER_IP:80"
+echo "✅ 배포 완료!"

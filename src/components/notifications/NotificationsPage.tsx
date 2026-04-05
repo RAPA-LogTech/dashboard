@@ -17,13 +17,19 @@ import {
   Stack,
   Typography,
 } from '@mui/material'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { apiClient } from '@/lib/apiClient'
 import { formatDateTime } from '@/lib/formatters'
 import NoDataState from '@/components/common/NoDataState'
 
 export default function NotificationsPage() {
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+  const [slackFlowFlash, setSlackFlowFlash] = useState<{ status: string | null; details: string | null }>(() => ({
+    status: searchParams.get('slack'),
+    details: searchParams.get('details'),
+  }))
   const queryClient = useQueryClient()
   const notificationsQuery = useQuery({
     queryKey: ['notifications-page'],
@@ -32,6 +38,16 @@ export default function NotificationsPage() {
   const integrationQuery = useQuery({
     queryKey: ['notifications-slack-integration-status'],
     queryFn: apiClient.getSlackIntegration,
+  })
+  const slackConfigQuery = useQuery<{ configured: boolean; message?: string }>({
+    queryKey: ['notifications-slack-config'],
+    queryFn: async () => {
+      const response = await fetch('/api/integrations/slack/config', { cache: 'no-store' })
+      if (!response.ok) {
+        throw new Error('Slack OAuth 설정 조회에 실패했습니다.')
+      }
+      return (await response.json()) as { configured: boolean; message?: string }
+    },
   })
 
   const disconnectSlackMutation = useMutation({
@@ -92,10 +108,50 @@ export default function NotificationsPage() {
   })
 
   const isIntegrationConnected = integrationQuery.data?.connected ?? false
+  const slackFlowStatus = slackFlowFlash.status
+  const slackFlowDetails = slackFlowFlash.details
+  const slackFlowErrorMessage =
+    slackFlowStatus === 'connect-error' || slackFlowStatus === 'oauth-error'
+      ? slackFlowDetails || 'Slack 연동 중 오류가 발생했습니다.'
+      : slackFlowStatus === 'missing-code'
+      ? 'Slack 승인 코드가 누락되었습니다. 다시 시도해주세요.'
+      : slackFlowStatus === 'cancelled'
+      ? 'Slack 연동이 취소되었습니다.'
+      : null
   const isLoading = notificationsQuery.isLoading || integrationQuery.isLoading
   const isBaseEmpty = notifications.length === 0
   const showIntegrationGuide = !isLoading && filter === 'all' && !isIntegrationConnected
   const showNoDataEmpty = !isLoading && filter === 'all' && isBaseEmpty && isIntegrationConnected
+  const slackActionState = (() => {
+    if (integrationQuery.isError) {
+      return {
+        kind: 'alert' as const,
+        severity: 'error' as const,
+        message: 'Slack 연동 상태를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.',
+      }
+    }
+
+    if (slackFlowErrorMessage) {
+      return {
+        kind: 'alert' as const,
+        severity: 'error' as const,
+        message: slackFlowErrorMessage,
+      }
+    }
+
+    if (!slackConfigQuery.data?.configured) {
+      return {
+        kind: 'alert' as const,
+        severity: 'warning' as const,
+        message: slackConfigQuery.data?.message || 'Slack OAuth 설정이 없어 연동할 수 없습니다.',
+      }
+    }
+
+    return {
+      kind: 'text' as const,
+      message: '버튼을 누르면 Slack 권한 승인 화면으로 이동합니다.',
+    }
+  })()
   const slackHighlights = [
     {
       title: '즉시 전달',
@@ -135,6 +191,23 @@ export default function NotificationsPage() {
 
     return '/'
   }
+
+  useEffect(() => {
+    const status = searchParams.get('slack')
+    const details = searchParams.get('details')
+
+    if (!status && !details) {
+      return
+    }
+
+    setSlackFlowFlash({ status, details })
+
+    const nextParams = new URLSearchParams(searchParams.toString())
+    nextParams.delete('slack')
+    nextParams.delete('details')
+    const nextQuery = nextParams.toString()
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname)
+  }, [pathname, router, searchParams])
 
   useEffect(() => {
     const routes = new Set<string>()
@@ -417,6 +490,7 @@ export default function NotificationsPage() {
                             <Button
                               variant="contained"
                               size="large"
+                              disabled={slackActionState.kind !== 'text'}
                               onClick={() => {
                                 window.location.href = '/api/integrations/slack/connect'
                               }}
@@ -432,14 +506,13 @@ export default function NotificationsPage() {
                               Slack 연동하기
                             </Button>
 
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
-                              버튼을 누르면 Slack 권한 승인 화면으로 이동합니다.
-                            </Typography>
-
-
-                            {integrationQuery.isError && (
-                              <Alert severity="error" variant="outlined" sx={{ mt: 1.5 }}>
-                                {(integrationQuery.error as Error).message}
+                            {slackActionState.kind === 'text' ? (
+                              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
+                                {slackActionState.message}
+                              </Typography>
+                            ) : (
+                              <Alert severity={slackActionState.severity} variant="outlined" sx={{ mt: 1 }}>
+                                {slackActionState.message}
                               </Alert>
                             )}
                           </Box>

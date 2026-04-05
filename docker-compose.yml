@@ -8,3 +8,4 @@ services:
     environment:
       NODE_ENV: "production"
       OBSERVABILITY_SERVICE_URL: "http://localhost:8081"
+      ALERT_SERVICE_URL: "http://localhost:8082"

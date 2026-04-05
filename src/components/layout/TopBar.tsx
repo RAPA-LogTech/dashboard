@@ -56,6 +56,16 @@ export default function TopBar({ onMenuClick, showMenuButton = false }: TopBarPr
     queryKey: ['topbar-slack-integration'],
     queryFn: apiClient.getSlackIntegration,
   })
+  const slackConfigQuery = useQuery<{ configured: boolean; message?: string }>({
+    queryKey: ['topbar-slack-config'],
+    queryFn: async () => {
+      const response = await fetch('/api/integrations/slack/config', { cache: 'no-store' })
+      if (!response.ok) {
+        throw new Error('Slack OAuth 설정 조회에 실패했습니다.')
+      }
+      return (await response.json()) as { configured: boolean; message?: string }
+    },
+  })
   const disconnectSlackMutation = useMutation({
     mutationFn: () => apiClient.disconnectSlackIntegration(),
     onSuccess: () => {
@@ -333,6 +343,7 @@ export default function TopBar({ onMenuClick, showMenuButton = false }: TopBarPr
                               <Button
                                 variant="contained"
                                 size="small"
+                                disabled={!slackConfigQuery.data?.configured}
                                 onClick={() => {
                                   window.location.href = '/api/integrations/slack/connect'
                                 }}
@@ -341,6 +352,12 @@ export default function TopBar({ onMenuClick, showMenuButton = false }: TopBarPr
                                 Slack 연동하기
                               </Button>
                             </Box>
+
+                            {!slackConfigQuery.data?.configured && (
+                              <Typography variant="caption" color="warning.main" sx={{ mt: 0.75 }}>
+                                {slackConfigQuery.data?.message || 'Slack OAuth 설정이 없어 연동을 시작할 수 없습니다.'}
+                              </Typography>
+                            )}
                           </Stack>
                         </CardContent>
                       </Card>
