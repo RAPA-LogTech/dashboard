@@ -134,7 +134,8 @@ export default function NotificationsPage() {
     !isLoading &&
     filter === 'all' &&
     isBaseEmpty &&
-    isIntegrationConnected
+    isIntegrationConnected &&
+    !hasIncidentHistory
   const slackActionState = (() => {
     if (integrationQuery.isError) {
       return {
