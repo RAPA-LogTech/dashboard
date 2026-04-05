@@ -14,6 +14,7 @@ type NotificationFeedPanelProps = {
   filteredNotifications: NotificationItem[]
   effectiveReadMap: Record<string, boolean>
   showNoDataEmpty: boolean
+  showIncidentsEmpty: boolean
   filter: 'all' | 'unread'
   getSeverityColor: (severity: string) => string
   resolveNotificationRoute: (notification: { route?: string; source?: string }) => string
@@ -25,6 +26,7 @@ export default function NotificationFeedPanel({
   filteredNotifications,
   effectiveReadMap,
   showNoDataEmpty,
+  showIncidentsEmpty,
   filter,
   getSeverityColor,
   resolveNotificationRoute,
@@ -40,6 +42,14 @@ export default function NotificationFeedPanel({
             description="아직 수집된 알림이 없습니다. 알림 이벤트가 발생하면 여기에 표시됩니다."
           />
         </Box>
+      )
+    }
+
+    if (showIncidentsEmpty) {
+      return (
+        <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
+          현재 조건에 해당하는 Slack 알람 이력이 없습니다.
+        </Typography>
       )
     }
 

@@ -134,10 +134,7 @@ export default function NotificationsPage() {
     !isLoading &&
     filter === 'all' &&
     isBaseEmpty &&
-    isIntegrationConnected &&
-    !incidentsQuery.isLoading &&
-    !incidentsQuery.isError &&
-    !hasIncidentHistory
+    isIntegrationConnected
   const slackActionState = (() => {
     if (integrationQuery.isError) {
       return {
@@ -613,6 +610,7 @@ export default function NotificationsPage() {
                 filteredNotifications={filteredNotifications}
                 effectiveReadMap={effectiveReadMap}
                 showNoDataEmpty={showNoDataEmpty}
+                showIncidentsEmpty={!hasIncidentHistory}
                 filter={filter}
                 getSeverityColor={getSeverityColor}
                 resolveNotificationRoute={resolveNotificationRoute}

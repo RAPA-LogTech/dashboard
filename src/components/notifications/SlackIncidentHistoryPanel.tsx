@@ -96,10 +96,6 @@ export default function SlackIncidentHistoryPanel({
         <Alert severity="error" variant="outlined">
           {incidentsErrorMessage}
         </Alert>
-      ) : incidents.length === 0 ? (
-        <Typography variant="body2" color="text.secondary">
-          현재 조건에 해당하는 Slack 알람 이력이 없습니다.
-        </Typography>
       ) : (
         <Stack spacing={1}>
           {incidents.map(item => (
