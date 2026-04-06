@@ -1,5 +1,4 @@
 import {
-  Alert,
   Box,
   Button,
   Chip,
@@ -8,6 +7,7 @@ import {
   Typography,
 } from '@mui/material'
 import { formatDateTime } from '@/lib/formatters'
+import NoDataState from '@/components/common/NoDataState'
 import type { SlackIncidentSummary } from '@/lib/types'
 
 type IncidentFilter = 'all' | 'ongoing' | 'analyzed' | 'resolved'
@@ -33,11 +33,11 @@ const getIncidentSeverityBorderColor = (severity: string | null | undefined) => 
   return 'info.main'
 }
 
-const getIncidentStatusLabel = (status: string | null | undefined) => {
-  if (status === 'ongoing') return '진행 중'
-  if (status === 'analyzed') return '분석 완료'
-  if (status === 'resolved') return '해결 완료'
-  return 'unknown'
+const getIncidentStatusChipProps = (status: string | null | undefined) => {
+  if (status === 'ongoing') return { label: '진행 중', variant: 'outlined' as const, sx: { borderColor: 'error.main', color: 'error.main' } }
+  if (status === 'analyzed') return { label: '분석 완료', variant: 'outlined' as const, sx: { borderColor: 'warning.main', color: 'warning.main' } }
+  if (status === 'resolved') return { label: '해결 완료', variant: 'outlined' as const, sx: { borderColor: 'success.main', color: 'success.main' } }
+  return { label: 'unknown', variant: 'outlined' as const, sx: {} }
 }
 
 export default function SlackIncidentHistoryPanel({
@@ -88,14 +88,30 @@ export default function SlackIncidentHistoryPanel({
 
       {incidentsLoading ? (
         <Stack spacing={1}>
-          <Skeleton variant="rounded" height={56} />
-          <Skeleton variant="rounded" height={56} />
-          <Skeleton variant="rounded" height={56} />
+          <Skeleton variant="rounded" height={88} />
+          <Skeleton variant="rounded" height={88} />
+          <Skeleton variant="rounded" height={88} />
         </Stack>
       ) : incidentsErrorMessage ? (
-        <Alert severity="error" variant="outlined">
-          {incidentsErrorMessage}
-        </Alert>
+        <NoDataState
+          title="조회 실패"
+          description={incidentsErrorMessage}
+        />
+      ) : incidents.length === 0 ? (
+        <NoDataState
+          title={
+            incidentFilter === 'all' ? '수집된 알람이 없습니다' :
+            incidentFilter === 'ongoing' ? '진행 중인 알람이 없습니다' :
+            incidentFilter === 'analyzed' ? '분석 완료된 알람이 없습니다' :
+            '해결 완료된 알람이 없습니다'
+          }
+          description={
+            incidentFilter === 'ongoing' ? 'Slack으로 전달된 알람 중 현재 진행 중인 항목이 없습니다.' :
+            incidentFilter === 'analyzed' ? 'AI 분석이 완료되었으나 아직 조치되지 않은 알람이 없습니다.' :
+            incidentFilter === 'resolved' ? '해결 완료로 처리된 알람 이력이 없습니다.' :
+            'Slack으로 전달된 알람 이력이 없습니다.'
+          }
+        />
       ) : (
         <Stack spacing={1}>
           {incidents.map(item => (
@@ -144,7 +160,7 @@ export default function SlackIncidentHistoryPanel({
                     color={getIncidentSeverityColor(item.severity)}
                     label={`severity: ${item.severity || 'unknown'}`}
                   />
-                  <Chip size="small" variant="outlined" label={getIncidentStatusLabel(item.status)} />
+                  <Chip size="small" {...getIncidentStatusChipProps(item.status)} />
                 </Stack>
               </Stack>
             </Box>

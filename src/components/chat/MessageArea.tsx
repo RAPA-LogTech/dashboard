@@ -219,7 +219,7 @@ export default function MessageArea({
               width: 30,
               height: 30,
               flexShrink: 0,
-              mt: -0.5,
+              mt: -1.5,
               border: `1px solid ${isDark ? 'rgba(147,51,234,0.3)' : 'rgba(147,51,234,0.2)'}`,
               bgcolor: isDark ? '#1e1b4b' : '#faf5ff',
             }}

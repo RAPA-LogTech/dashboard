@@ -1,5 +1,6 @@
 'use client'
 
+import { useRef } from 'react'
 import { useTheme } from '@mui/material/styles'
 import { Box, IconButton, TextField } from '@mui/material'
 import { ArrowUpward as SendIcon } from '@mui/icons-material'
@@ -16,9 +17,10 @@ export default function ChatInput({ value, onChange, onSend, disabled = false, i
   const theme = useTheme()
   const isDark = theme.palette.mode === 'dark'
   const canSend = !disabled && value.trim().length > 0
+  const isComposing = useRef(false)
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !isComposing.current) {
       e.preventDefault()
       if (canSend) onSend()
     }
@@ -56,6 +58,8 @@ export default function ChatInput({ value, onChange, onSend, disabled = false, i
           value={value}
           onChange={e => onChange(e.target.value)}
           onKeyDown={handleKeyDown}
+          onCompositionStart={() => { isComposing.current = true }}
+          onCompositionEnd={() => { isComposing.current = false }}
           disabled={disabled}
           placeholder="메시지를 입력하세요..."
           variant="standard"

@@ -158,13 +158,15 @@ export default function AiPage() {
           minHeight: 0,
         }}
       >
-        <ChatSidebar
-          conversations={conversations}
-          activeConversationId={activeConversationId}
-          onSelectConversation={handleSelectConversation}
-          onCreateNew={handleCreateNew}
-          onDeleteConversation={handleDeleteConversation}
-        />
+        {conversations.length > 0 && (
+          <ChatSidebar
+            conversations={conversations}
+            activeConversationId={activeConversationId}
+            onSelectConversation={handleSelectConversation}
+            onCreateNew={handleCreateNew}
+            onDeleteConversation={handleDeleteConversation}
+          />
+        )}
         <ChatMain
           key={activeConversation?.id ?? 'empty'}
           conversation={activeConversation || null}

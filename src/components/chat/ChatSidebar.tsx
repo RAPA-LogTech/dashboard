@@ -2,7 +2,7 @@
 
 import { useTheme } from '@mui/material/styles'
 import { Box, IconButton, Typography } from '@mui/material'
-import { Add as AddIcon, Delete as DeleteIcon, ChatBubbleOutline as ChatIcon } from '@mui/icons-material'
+import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material'
 import { AiConversation } from '@/lib/types'
 
 interface ChatSidebarProps {
@@ -97,16 +97,8 @@ export default function ChatSidebar({
           },
         }}
       >
-        {conversations.length === 0 ? (
-          <Box sx={{ px: 2, py: 3, textAlign: 'center' }}>
-            <ChatIcon sx={{ fontSize: '1.5rem', color: theme.palette.text.disabled, mb: 0.5 }} />
-            <Typography variant="caption" sx={{ color: theme.palette.text.disabled, display: 'block' }}>
-              대화가 없습니다
-            </Typography>
-          </Box>
-        ) : (
-          conversations.map(conv => {
-            const isActive = activeConversationId === conv.id
+        {conversations.map(conv => {
+          const isActive = activeConversationId === conv.id
             return (
               <Box
                 key={conv.id}
@@ -173,9 +165,8 @@ export default function ChatSidebar({
                   </IconButton>
                 )}
               </Box>
-            )
-          })
-        )}
+          )
+        })}
       </Box>
     </Box>
   )

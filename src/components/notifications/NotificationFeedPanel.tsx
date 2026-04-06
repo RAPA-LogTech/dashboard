@@ -45,14 +45,6 @@ export default function NotificationFeedPanel({
       )
     }
 
-    if (showIncidentsEmpty) {
-      return (
-        <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
-          현재 조건에 해당하는 Slack 알람 이력이 없습니다.
-        </Typography>
-      )
-    }
-
     if (filter === 'unread') {
       return (
         <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
