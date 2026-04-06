@@ -3,11 +3,13 @@ import { Box, Typography } from '@mui/material'
 type NoDataStateProps = {
   title?: string
   description?: string
+  children?: React.ReactNode
 }
 
 export default function NoDataState({
   title = 'No data',
   description = '조건에 맞는 데이터가 없습니다.',
+  children,
 }: NoDataStateProps) {
   return (
     <Box
@@ -27,6 +29,7 @@ export default function NoDataState({
       <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
         {description}
       </Typography>
+      {children}
     </Box>
   )
 }

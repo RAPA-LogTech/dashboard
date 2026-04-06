@@ -95,6 +95,7 @@ export default function Sidebar({
                 px: 2,
                 py: 0.6,
                 mb: 0.5,
+                position: 'static',
               }}
             >
               {group.label}

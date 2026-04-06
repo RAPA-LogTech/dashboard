@@ -284,6 +284,32 @@ export type SlackChannelListResponse = {
 
 export type SlackIncidentStatus = 'ongoing' | 'analyzed' | 'resolved'
 
+export type SlackAlertSeverity = 'low' | 'medium' | 'high' | 'critical'
+
+export type SlackAlertSettings = {
+  renotify_interval_minutes: number
+  min_severity: SlackAlertSeverity
+  quiet_hours_enabled: boolean
+  quiet_hours_start: string
+  quiet_hours_end: string
+  quiet_hours_critical_only: boolean
+  include_service_info: boolean
+  include_trace_link: boolean
+  include_log_link: boolean
+}
+
+export const DEFAULT_SLACK_ALERT_SETTINGS: SlackAlertSettings = {
+  renotify_interval_minutes: 60,
+  min_severity: 'medium',
+  quiet_hours_enabled: false,
+  quiet_hours_start: '02:00',
+  quiet_hours_end: '07:00',
+  quiet_hours_critical_only: true,
+  include_service_info: true,
+  include_trace_link: true,
+  include_log_link: true,
+}
+
 export type SlackIncidentSummary = {
   incident_id: string
   alert_name?: string | null

@@ -1,10 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { useMutation, useQuery } from '@tanstack/react-query'
-import { Box, Card, CardContent, Typography } from '@mui/material'
+import { useQuery } from '@tanstack/react-query'
+import { Box, Button, Card, CardContent, Typography } from '@mui/material'
 import { apiClient } from '@/lib/apiClient'
 import SlackIncidentHistoryPanel from '@/components/notifications/SlackIncidentHistoryPanel'
+import NoDataState from '@/components/common/NoDataState'
 
 type IncidentFilter = 'all' | 'ongoing' | 'analyzed' | 'resolved'
 
@@ -36,6 +37,8 @@ export default function NotificationsPage() {
     return `https://${teamDomainRaw}.slack.com/archives/${channelId}/p${secondsPart}${microsPart}`
   }
 
+  const isConnected = integrationQuery.data?.connected ?? false
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 1.5, sm: 2, md: 3 } }}>
       <Box>
@@ -44,31 +47,48 @@ export default function NotificationsPage() {
           Slack으로 전달된 알람 이력을 확인하고 상세 내용을 볼 수 있습니다.
         </Typography>
       </Box>
-      <Card variant="outlined" sx={{ borderColor: 'divider' }}>
-        <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
-          <SlackIncidentHistoryPanel
-            incidentFilter={incidentFilter}
-            onIncidentFilterChange={setIncidentFilter}
-            incidents={incidentItems}
-            incidentsLoading={incidentsQuery.isLoading}
-            incidentsErrorMessage={
-              incidentsQuery.isError
-                ? incidentsQuery.error instanceof Error
-                  ? incidentsQuery.error.message
-                  : 'Slack 알람 이력 조회에 실패했습니다.'
-                : null
-            }
-            onOpenSlackMessage={(incident) => {
-              const permalink = toSlackMessagePermalink(incident.slack_ts, incident.slack_channel)
-              if (!permalink) {
-                window.alert('Slack 링크를 만들 수 없습니다. teamDomain 또는 channelId를 확인해 주세요.')
-                return
+
+      {!integrationQuery.isLoading && !isConnected ? (
+        <NoDataState
+          title="Slack이 연동되지 않았습니다"
+          description="Slack을 연동하면 알람 이력이 이곳에 표시됩니다."
+        >
+          <Button
+            variant="contained"
+            size="large"
+            onClick={() => { window.location.href = '/api/integrations/slack/connect' }}
+            sx={{ textTransform: 'none', mt: 1.5 }}
+          >
+            Slack 연동하기
+          </Button>
+        </NoDataState>
+      ) : (
+        <Card variant="outlined" sx={{ borderColor: 'divider' }}>
+          <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
+            <SlackIncidentHistoryPanel
+              incidentFilter={incidentFilter}
+              onIncidentFilterChange={setIncidentFilter}
+              incidents={incidentItems}
+              incidentsLoading={incidentsQuery.isLoading}
+              incidentsErrorMessage={
+                incidentsQuery.isError
+                  ? incidentsQuery.error instanceof Error
+                    ? incidentsQuery.error.message
+                    : 'Slack 알람 이력 조회에 실패했습니다.'
+                  : null
               }
-              window.open(permalink, '_blank', 'noopener,noreferrer')
-            }}
-          />
-        </CardContent>
-      </Card>
+              onOpenSlackMessage={(incident) => {
+                const permalink = toSlackMessagePermalink(incident.slack_ts, incident.slack_channel)
+                if (!permalink) {
+                  window.alert('Slack 링크를 만들 수 없습니다. teamDomain 또는 channelId를 확인해 주세요.')
+                  return
+                }
+                window.open(permalink, '_blank', 'noopener,noreferrer')
+              }}
+            />
+          </CardContent>
+        </Card>
+      )}
     </Box>
   )
 }

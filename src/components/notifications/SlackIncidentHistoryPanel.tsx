@@ -115,6 +115,7 @@ export default function SlackIncidentHistoryPanel({
                 borderLeftColor: getIncidentSeverityBorderColor(item.severity),
                 borderRadius: 1.5,
                 p: 1.25,
+                pl: 2,
                 cursor: 'pointer',
                 '&:hover': {
                   bgcolor: 'action.hover',
@@ -149,7 +150,7 @@ export default function SlackIncidentHistoryPanel({
                   <Chip
                     size="small"
                     color={getIncidentSeverityColor(item.severity)}
-                    label={`severity: ${item.severity || 'unknown'}`}
+                    label={`${item.severity || 'unknown'}`}
                   />
                   <Chip size="small" {...getIncidentStatusChipProps(item.status)} />
                 </Stack>

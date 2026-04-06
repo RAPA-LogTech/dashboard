@@ -10,6 +10,7 @@ import {
   ReportItem,
   ReportType,
   RunbookItem,
+  SlackAlertSettings,
   SlackChannelListItem,
   SlackChannelListResponse,
   SlackChannelUpdatePayload,
@@ -568,6 +569,24 @@ export const apiClient = {
     }
 
     return (await response.json()) as SlackIncidentDetailResponse
+  },
+
+  async getSlackAlertSettings() {
+    const response = await fetch('/api/integrations/slack/alert-settings', { cache: 'no-store' })
+    if (!response.ok) throw new Error(await readErrorMessage(response, '알람 설정 조회에 실패했습니다.'))
+    const data = await response.json() as { ok: boolean; settings: SlackAlertSettings }
+    return data.settings
+  },
+
+  async updateSlackAlertSettings(settings: SlackAlertSettings) {
+    const response = await fetch('/api/integrations/slack/alert-settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings),
+    })
+    if (!response.ok) throw new Error(await readErrorMessage(response, '알람 설정 저장에 실패했습니다.'))
+    const data = await response.json() as { ok: boolean; settings: SlackAlertSettings }
+    return data.settings
   },
 
   // ============ Reports ============

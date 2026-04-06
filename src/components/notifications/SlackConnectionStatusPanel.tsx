@@ -2,6 +2,7 @@ import {
   Alert,
   Box,
   Button,
+  Card,
   Link as MuiLink,
   Stack,
   Typography,
@@ -43,7 +44,8 @@ export default function SlackConnectionStatusPanel({
     : undefined
 
   return (
-    <Box sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
+    <Card variant="outlined" sx={{ borderColor: 'divider' }}>
+    <Box sx={{ p: 2 }}>
       <Stack direction="row" spacing={1.25} justifyContent="space-between" alignItems="center" flexWrap="wrap">
         <Stack direction="row" spacing={1.25} alignItems="center" sx={{ minWidth: 0 }}>
           <Box
@@ -207,5 +209,6 @@ export default function SlackConnectionStatusPanel({
         </Alert>
       ) : null}
     </Box>
+    </Card>
   )
 }
