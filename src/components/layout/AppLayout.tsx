@@ -6,7 +6,7 @@ import { Box, useTheme, useMediaQuery } from '@mui/material'
 import Sidebar from './Sidebar'
 import TopBar from './TopBar'
 import AiChatDrawer from '../chat/AiChatDrawer'
-import { GlobalFilterState } from '@/lib/types'
+import { useAiChat } from '@/app/providers'
 
 interface AppLayoutProps {
   children: React.ReactNode
@@ -20,15 +20,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
   const theme = useTheme()
   const isMobile = useMediaQuery(theme.breakpoints.down('md'))
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false)
-  const [aiChatOpen, setAiChatOpen] = useState(false)
-  const [filters] = useState<GlobalFilterState>({
-    timeRange: '1h',
-    startTime: Date.now() - 3600000,
-    endTime: Date.now(),
-    service: [],
-    env: [],
-    cluster: [],
-  })
+  const { openDrawer } = useAiChat()
 
   const handleDrawerToggle = () => {
     setMobileDrawerOpen(!mobileDrawerOpen)
@@ -60,14 +52,14 @@ export default function AppLayout({ children }: AppLayoutProps) {
             overflow: 'hidden',
           }}
         >
-          <Sidebar onOpenAiChat={() => setAiChatOpen(true)} variant="permanent" />
+          <Sidebar onOpenAiChat={openDrawer} variant="permanent" />
         </Box>
       )}
 
       {/* Mobile Drawer */}
       {isMobile && (
         <Sidebar
-          onOpenAiChat={() => setAiChatOpen(true)}
+          onOpenAiChat={openDrawer}
           variant="temporary"
           openMobile={mobileDrawerOpen}
           onCloseMobile={() => setMobileDrawerOpen(false)}
@@ -115,8 +107,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
         </Box>
       </Box>
 
-      {/* AI Chat Drawer - fixed width */}
-      <AiChatDrawer open={aiChatOpen} onClose={() => setAiChatOpen(false)} filters={filters} />
+      <AiChatDrawer />
     </Box>
   )
 }

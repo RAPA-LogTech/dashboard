@@ -10,14 +10,18 @@ interface ChatMainProps {
   conversation: AiConversation | null
   onSendMessage: (content: string) => void
   isLoading?: boolean
+  isLoadingMessages?: boolean
   suggestedPrompts?: SuggestedPrompt[]
+  compactPrompts?: boolean
 }
 
 export default function ChatMain({
   conversation,
   onSendMessage,
   isLoading = false,
+  isLoadingMessages = false,
   suggestedPrompts,
+  compactPrompts = false,
 }: ChatMainProps) {
   const [inputValue, setInputValue] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -42,8 +46,10 @@ export default function ChatMain({
       <MessageArea
         messages={conversation?.messages || []}
         isLoading={isLoading}
+        isLoadingMessages={isLoadingMessages}
         suggestedPrompts={suggestedPrompts}
         onSuggestedPromptClick={handlePromptClick}
+        compactPrompts={compactPrompts}
       />
       <ChatInput
         inputRef={inputRef}

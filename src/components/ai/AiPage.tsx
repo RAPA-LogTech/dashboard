@@ -31,6 +31,7 @@ export default function AiPage() {
   const [conversations, setConversations] = useState<AiConversation[]>([])
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false)
 
   const loadConversations = useCallback(async () => {
     try {
@@ -50,6 +51,7 @@ export default function AiPage() {
     setActiveConversationId(id)
     const existing = conversations.find(c => c.id === id)
     if (existing && existing.messages.length === 0) {
+      setIsLoadingMessages(true)
       try {
         const res = await fetch(`/api/chat/conversations/${id}`)
         const data = await res.json()
@@ -60,6 +62,8 @@ export default function AiPage() {
         ))
       } catch {
         console.error('Failed to load messages')
+      } finally {
+        setIsLoadingMessages(false)
       }
     }
   }
@@ -166,6 +170,7 @@ export default function AiPage() {
           conversation={activeConversation || null}
           onSendMessage={handleSendMessage}
           isLoading={isLoading}
+          isLoadingMessages={isLoadingMessages}
         />
       </Paper>
     </Box>

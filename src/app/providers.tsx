@@ -1,10 +1,10 @@
 'use client'
 
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import { CssBaseline, PaletteMode, ThemeProvider } from '@mui/material'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { getAppTheme } from '@/theme/theme'
-import { GlobalFilterState } from '@/lib/types'
+import { AiConversation, AiMessage, GlobalFilterState } from '@/lib/types'
 
 const THEME_MODE_STORAGE_KEY = 'logtech-theme-mode'
 
@@ -74,6 +74,44 @@ export const useFilters = () => {
   return context
 }
 
+// ============ AiChat Context ============
+
+function toAiConversation(conv: { id: string; title: string; created_at: string; updated_at: string }, messages: AiMessage[] = []): AiConversation {
+  return {
+    id: conv.id,
+    title: conv.title,
+    messages,
+    startedAt: new Date(conv.created_at).getTime(),
+    updatedAt: new Date(conv.updated_at).getTime(),
+  }
+}
+
+function toAiMessage(msg: { id: string; role: string; content: string; created_at: string }): AiMessage {
+  return {
+    id: msg.id,
+    role: msg.role as 'user' | 'assistant',
+    content: msg.content,
+    timestamp: new Date(msg.created_at).getTime(),
+  }
+}
+
+type AiChatContextType = {
+  drawerOpen: boolean
+  openDrawer: () => void
+  closeDrawer: () => void
+  drawerConversation: AiConversation | null
+  isLoading: boolean
+  sendMessage: (content: string) => Promise<void>
+}
+
+const AiChatContext = createContext<AiChatContextType | null>(null)
+
+export const useAiChat = () => {
+  const context = useContext(AiChatContext)
+  if (!context) throw new Error('useAiChat must be used within AppProviders')
+  return context
+}
+
 const queryClient = new QueryClient()
 
 export default function AppProviders({ children }: { children: React.ReactNode }) {
@@ -81,6 +119,9 @@ export default function AppProviders({ children }: { children: React.ReactNode }
   const [filters, setFiltersState] = useState<GlobalFilterState>(defaultFilters)
   const [hasUserPreference, setHasUserPreference] = useState(getInitialHasUserPreference)
   const [isMounted, setIsMounted] = useState(false)
+  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [drawerConversation, setDrawerConversation] = useState<AiConversation | null>(null)
+  const [isChatLoading, setIsChatLoading] = useState(false)
 
   useEffect(() => {
     setIsMounted(true)
@@ -148,6 +189,64 @@ export default function AppProviders({ children }: { children: React.ReactNode }
     setFiltersState(prev => ({ ...prev, timeRange, startTime, endTime }))
   }
 
+  const sendMessage = useCallback(async (content: string) => {
+    let cid = drawerConversation?.id ?? null
+
+    if (!cid) {
+      try {
+        const res = await fetch('/api/chat/conversations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: content }),
+        })
+        const conv = await res.json()
+        const newConv = toAiConversation(conv)
+        setDrawerConversation(newConv)
+        cid = newConv.id
+      } catch {
+        return
+      }
+    }
+
+    const tempUserMsg: AiMessage = {
+      id: `temp-${Date.now()}`,
+      role: 'user',
+      content,
+      timestamp: Date.now(),
+    }
+    setDrawerConversation(prev => prev ? { ...prev, messages: [...prev.messages, tempUserMsg] } : prev)
+
+    setIsChatLoading(true)
+    try {
+      const res = await fetch(`/api/chat/conversations/${cid}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: content }),
+      })
+      const data = await res.json()
+      const assistantMsg = toAiMessage(data.message)
+      setDrawerConversation(prev => {
+        if (!prev) return prev
+        const msgs = prev.messages.filter(m => m.id !== tempUserMsg.id)
+        const userMsg: AiMessage = { ...tempUserMsg, id: `user-${Date.now()}` }
+        return { ...prev, messages: [...msgs, userMsg, assistantMsg], updatedAt: Date.now() }
+      })
+    } catch {
+      console.error('Failed to send message')
+    } finally {
+      setIsChatLoading(false)
+    }
+  }, [drawerConversation])
+
+  const aiChatValue = useMemo(() => ({
+    drawerOpen,
+    openDrawer: () => setDrawerOpen(true),
+    closeDrawer: () => setDrawerOpen(false),
+    drawerConversation,
+    isLoading: isChatLoading,
+    sendMessage,
+  }), [drawerOpen, drawerConversation, isChatLoading, sendMessage])
+
   const colorModeValue = useMemo(() => ({ mode, toggleMode }), [mode])
   const filterValue = useMemo(() => ({ filters, setFilters, updateTimeRange }), [filters])
   const theme = useMemo(() => getAppTheme(mode), [mode])
@@ -159,12 +258,14 @@ export default function AppProviders({ children }: { children: React.ReactNode }
   return (
     <ColorModeContext.Provider value={colorModeValue}>
       <FilterContext.Provider value={filterValue}>
-        <QueryClientProvider client={queryClient}>
-          <ThemeProvider theme={theme}>
-            <CssBaseline />
-            {children}
-          </ThemeProvider>
-        </QueryClientProvider>
+        <AiChatContext.Provider value={aiChatValue}>
+          <QueryClientProvider client={queryClient}>
+            <ThemeProvider theme={theme}>
+              <CssBaseline />
+              {children}
+            </ThemeProvider>
+          </QueryClientProvider>
+        </AiChatContext.Provider>
       </FilterContext.Provider>
     </ColorModeContext.Provider>
   )

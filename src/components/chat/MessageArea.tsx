@@ -2,15 +2,17 @@
 
 import { useRef, useEffect } from 'react'
 import { useTheme } from '@mui/material/styles'
-import { Box, Avatar, Typography } from '@mui/material'
+import { Box, Avatar, Typography, Skeleton } from '@mui/material'
 import { AiMessage } from '@/lib/types'
 import MessageBubble from './MessageBubble'
 
 interface MessageAreaProps {
   messages: AiMessage[]
   isLoading: boolean
+  isLoadingMessages?: boolean
   suggestedPrompts?: SuggestedPrompt[]
   onSuggestedPromptClick?: (prompt: string) => void
+  compactPrompts?: boolean
 }
 
 export interface SuggestedPrompt {
@@ -28,8 +30,10 @@ const defaultSuggestedPrompts: SuggestedPrompt[] = [
 export default function MessageArea({
   messages,
   isLoading,
+  isLoadingMessages = false,
   suggestedPrompts = defaultSuggestedPrompts,
   onSuggestedPromptClick,
+  compactPrompts = false,
 }: MessageAreaProps) {
   const theme = useTheme()
   const isDark = theme.palette.mode === 'dark'
@@ -38,6 +42,39 @@ export default function MessageArea({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isLoading])
+
+  // 메시지 로딩 중 스켈레톤
+  if (isLoadingMessages) {
+    return (
+      <Box sx={{ flex: 1, overflowY: 'auto', py: 3, px: 2, display: 'flex', flexDirection: 'column', gap: 2.5 }}>
+        {/* AI 말풍선 스켈레톤 */}
+        <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
+          <Skeleton variant="circular" width={30} height={30} sx={{ flexShrink: 0 }} />
+          <Box sx={{ flex: 1, maxWidth: '75%' }}>
+            <Skeleton variant="rounded" height={18} width="90%" sx={{ mb: 0.75, borderRadius: '0px 12px 12px 12px' }} />
+            <Skeleton variant="rounded" height={18} width="70%" sx={{ borderRadius: '12px' }} />
+          </Box>
+        </Box>
+        {/* 유저 말풍선 스켈레톤 */}
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Skeleton variant="rounded" height={40} width="55%" sx={{ borderRadius: '18px 18px 0px 18px' }} />
+        </Box>
+        {/* AI 말풍선 스켈레톤 */}
+        <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start' }}>
+          <Skeleton variant="circular" width={30} height={30} sx={{ flexShrink: 0 }} />
+          <Box sx={{ flex: 1, maxWidth: '80%' }}>
+            <Skeleton variant="rounded" height={18} width="100%" sx={{ mb: 0.75, borderRadius: '0px 12px 12px 12px' }} />
+            <Skeleton variant="rounded" height={18} width="85%" sx={{ mb: 0.75, borderRadius: '12px' }} />
+            <Skeleton variant="rounded" height={18} width="60%" sx={{ borderRadius: '12px' }} />
+          </Box>
+        </Box>
+        {/* 유저 말풍선 스켈레톤 */}
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Skeleton variant="rounded" height={40} width="40%" sx={{ borderRadius: '18px 18px 0px 18px' }} />
+        </Box>
+      </Box>
+    )
+  }
 
   if (messages.length === 0) {
     return (
@@ -84,51 +121,69 @@ export default function MessageArea({
           </Typography>
         </Box>
 
-        {/* 프롬프트 카드 2x2 그리드 */}
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: 1,
-            width: '100%',
-            maxWidth: 600,
-          }}
-        >
-          {suggestedPrompts.map(prompt => (
-            <Box
-              key={prompt.title}
-              onClick={() => onSuggestedPromptClick?.(prompt.title)}
-              sx={{
-                p: 1.5,
-                borderRadius: '12px',
-                border: `1px solid ${isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)'}`,
-                bgcolor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-                width: '300px',
-                '&:hover': {
-                  border: `1px solid rgba(147,51,234,0.5)`,
-                  bgcolor: isDark ? 'rgba(147,51,234,0.08)' : 'rgba(147,51,234,0.05)',
-                  transform: 'translateY(-1px)',
-                  boxShadow: '0 4px 12px rgba(147,51,234,0.15)',
-                },
-              }}
-            >
-              <Typography sx={{ fontSize: '1rem', mb: 0.5 }}>{prompt.icon}</Typography>
-              <Typography
-                variant="body2"
+        {/* 프롬프트 카드 */}
+        {compactPrompts ? (
+          // 1x4 세로 나열 (Drawer)
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, width: '100%', maxWidth: 480 }}>
+            {suggestedPrompts.map(prompt => (
+              <Box
+                key={prompt.title}
+                onClick={() => onSuggestedPromptClick?.(prompt.title)}
                 sx={{
-                  fontSize: '0.8rem',
-                  lineHeight: 1.4,
-                  color: theme.palette.text.secondary,
-                  fontWeight: 400,
+                  p: 1.5,
+                  borderRadius: '12px',
+                  border: `1px solid ${isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)'}`,
+                  bgcolor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1.5,
+                  '&:hover': {
+                    border: '1px solid rgba(147,51,234,0.5)',
+                    bgcolor: isDark ? 'rgba(147,51,234,0.08)' : 'rgba(147,51,234,0.05)',
+                    transform: 'translateY(-1px)',
+                    boxShadow: '0 4px 12px rgba(147,51,234,0.15)',
+                  },
                 }}
               >
-                {prompt.title}
-              </Typography>
-            </Box>
-          ))}
-        </Box>
+                <Typography sx={{ fontSize: '1.1rem', lineHeight: 1, flexShrink: 0 }}>{prompt.icon}</Typography>
+                <Typography variant="body2" sx={{ fontSize: '0.82rem', lineHeight: 1.4, color: theme.palette.text.secondary }}>
+                  {prompt.title}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+        ) : (
+          // 2x2 그리드 (전체 대화창)
+          <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, width: '100%', maxWidth: 600 }}>
+            {suggestedPrompts.map(prompt => (
+              <Box
+                key={prompt.title}
+                onClick={() => onSuggestedPromptClick?.(prompt.title)}
+                sx={{
+                  p: 1.5,
+                  borderRadius: '12px',
+                  border: `1px solid ${isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.08)'}`,
+                  bgcolor: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  '&:hover': {
+                    border: '1px solid rgba(147,51,234,0.5)',
+                    bgcolor: isDark ? 'rgba(147,51,234,0.08)' : 'rgba(147,51,234,0.05)',
+                    transform: 'translateY(-1px)',
+                    boxShadow: '0 4px 12px rgba(147,51,234,0.15)',
+                  },
+                }}
+              >
+                <Typography sx={{ fontSize: '1rem', mb: 0.5 }}>{prompt.icon}</Typography>
+                <Typography variant="body2" sx={{ fontSize: '0.8rem', lineHeight: 1.4, color: theme.palette.text.secondary }}>
+                  {prompt.title}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+        )}
       </Box>
     )
   }
