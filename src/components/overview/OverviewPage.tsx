@@ -1,323 +1,116 @@
 'use client'
 
-import React, { useEffect, useState, useCallback } from 'react'
-import {
-  Box,
-  Card,
-  CardContent,
-  Grid,
-  Typography,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  Chip,
-  Button,
-  Skeleton,
-} from '@mui/material'
-import { ArrowRight as ArrowRightIcon } from '@mui/icons-material'
-import KPICard from '@/components/KPICard'
-import { formatTimestamp } from '@/lib/formatters'
-import { apiClient, OverviewData } from '@/lib/apiClient'
-import NoDataState from '@/components/common/NoDataState'
+import { useState, useCallback } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { Box, Typography } from '@mui/material'
+import { apiClient, getLogs } from '@/lib/apiClient'
+import type { MetricSeries, Trace, LogEntry } from '@/lib/types'
+import StatusBanner from './StatusBanner'
+import KpiRow from './KpiRow'
+import ErrorRateChart from './ErrorRateChart'
+import ServiceHeatmap from './ServiceHeatmap'
+import ActivityFeed from './ActivityFeed'
+import PlatformNavCards from './PlatformNavCards'
 
-// ─── Skeleton helpers ───
+type ServiceHealth = { service: string; env?: string; error_rate: number; rds_cpu?: number }
 
-function KPISkeleton() {
-  return (
-    <Card>
-      <CardContent>
-        <Skeleton variant="text" width="60%" height={20} sx={{ mb: 2 }} />
-        <Skeleton variant="text" width="40%" height={40} sx={{ mb: 2 }} />
-        <Skeleton variant="rounded" width={80} height={20} />
-      </CardContent>
-    </Card>
-  )
-}
-
-function TableRowSkeleton({ cols }: { cols: number }) {
-  return (
-    <TableRow>
-      {Array.from({ length: cols }).map((_, i) => (
-        <TableCell key={i} sx={{ padding: '12px' }}>
-          <Skeleton variant="text" />
-        </TableCell>
-      ))}
-    </TableRow>
-  )
-}
-
-function AlertSkeleton() {
-  return (
-    <Card variant="outlined" sx={{ borderLeft: '4px solid', borderColor: 'divider' }}>
-      <CardContent sx={{ py: 1.5, px: 2, '&:last-child': { pb: 1.5 } }}>
-        <Skeleton variant="text" width="70%" height={18} sx={{ mb: 1 }} />
-        <Skeleton variant="text" width="90%" height={14} />
-      </CardContent>
-    </Card>
-  )
-}
-
-// ─── Main ───
+const EMPTY_ARRAY: never[] = []
 
 export default function OverviewPage() {
-  const [data, setData] = useState<OverviewData | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0)
 
-  const fetchData = useCallback(async () => {
-    setLoading(true)
-    const result = await apiClient.getOverview()
-    setData(result)
-    setLoading(false)
+  const handleRefresh = useCallback(() => {
+    setRefreshKey(k => k + 1)
+    setLastUpdated(new Date())
   }, [])
 
-  useEffect(() => {
-    fetchData()
-  }, [fetchData])
+  const { data: serviceHealth = EMPTY_ARRAY as ServiceHealth[], isLoading: isHealthLoading } = useQuery({
+    queryKey: ['metric-health', refreshKey],
+    queryFn: async () => {
+      const data = await apiClient.getMetricServiceHealth()
+      setLastUpdated(new Date())
+      return data as ServiceHealth[]
+    },
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+  })
 
-  if (!loading && data === null) {
-    return (
-      <Box>
-        <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1 }}>
-          Dashboard Overview
-        </Typography>
-        <NoDataState title="No overview data" description="데이터를 불러오지 못했습니다." />
-      </Box>
-    )
-  }
+  const { data: metricsData = EMPTY_ARRAY as MetricSeries[], isLoading: isMetricsLoading } = useQuery({
+    queryKey: ['metrics', refreshKey],
+    queryFn: apiClient.getMetrics,
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+  })
 
-  const kpi = data?.kpi
-  const services = data?.services ?? []
-  const logs = data?.recent_logs ?? []
+  const { data: tracesData, isLoading: isTracesLoading } = useQuery({
+    queryKey: ['traces', refreshKey],
+    queryFn: apiClient.getTraces,
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+  })
+  const traces: Trace[] = tracesData ?? EMPTY_ARRAY as Trace[]
 
-  const healthyCount = services.filter(s => s.error_rate < 0.05).length
-  const degradedCount = services.filter(s => s.error_rate >= 0.05).length
+  const { data: errorLogsData, isLoading: isLogsLoading } = useQuery({
+    queryKey: ['overview-error-logs', refreshKey],
+    queryFn: () => getLogs({ level: 'ERROR', limit: 20 }),
+    staleTime: 30_000,
+    refetchInterval: 30_000,
+  })
+  const errorLogs: LogEntry[] = errorLogsData ?? EMPTY_ARRAY as LogEntry[]
 
-  const statusColors: Record<string, { bg: string; text: string }> = {
-    healthy: { bg: 'rgba(16, 185, 129, 0.1)', text: '#10b981' },
-    degraded: { bg: 'rgba(251, 191, 36, 0.1)', text: '#fbbf24' },
-  }
+  const { data: slackStatus } = useQuery({
+    queryKey: ['slack-integration'],
+    queryFn: () => apiClient.getSlackIntegration().catch(() => null),
+    staleTime: 60_000,
+  })
 
-  const severityColors: Record<string, { bg: string; text: string; borderColor: string }> = {
-    warning: { bg: 'rgba(251, 191, 36, 0.1)', text: '#fbbf24', borderColor: '#b45309' },
-    error: { bg: 'rgba(239, 68, 68, 0.1)', text: '#ef4444', borderColor: '#991b1b' },
-    critical: { bg: 'rgba(239, 68, 68, 0.1)', text: '#ef4444', borderColor: '#991b1b' },
-  }
-
-  const levelColors: Record<string, { bg: string; text: string }> = {
-    ERROR: { bg: 'rgba(239, 68, 68, 0.1)', text: '#ef4444' },
-    WARN: { bg: 'rgba(251, 191, 36, 0.1)', text: '#fbbf24' },
-    INFO: { bg: 'rgba(59, 130, 246, 0.1)', text: '#3b82f6' },
-    DEBUG: { bg: 'rgba(107, 114, 128, 0.1)', text: '#6b7280' },
-  }
-
-  const alerts = services
-    .filter(s => s.error_rate >= 0.01)
-    .sort((a, b) => b.error_rate - a.error_rate)
-    .slice(0, 4)
+  const errorTraces = traces.filter(t => t.status === 'error')
+  const serviceCount = [...new Set(serviceHealth.filter(h => !h.rds_cpu).map(h => h.service))].length
+  const isLoading = isHealthLoading || isMetricsLoading
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 1.5, sm: 2, md: 3 } }}>
-      {/* Header */}
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2.5 }}>
       <Box>
-        <Typography variant="h4" sx={{ fontWeight: 'bold', mb: 1 }}>
-          Dashboard Overview
-        </Typography>
-        <Typography variant="body2" sx={{ color: theme => theme.palette.text.secondary }}>
-          Real-time health and performance metrics of your services
+        <Typography variant="h4" sx={{ fontWeight: 800, mb: 0.5 }}>Overview</Typography>
+        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+          Real-time health across all services and infrastructure
         </Typography>
       </Box>
 
-      {/* KPI Cards */}
-      <Grid container spacing={{ xs: 1.5, sm: 2, md: 2 }}>
-        {loading ? (
-          Array.from({ length: 4 }).map((_, i) => (
-            <Grid item xs={12} sm={6} md={6} lg={3} key={i}>
-              <KPISkeleton />
-            </Grid>
-          ))
-        ) : (
-          <>
-            <Grid item xs={12} sm={6} md={6} lg={3}>
-              <KPICard
-                title="Error Rate (avg)"
-                value={(kpi?.error_rate ?? 0) * 100}
-                unit="%"
-                status={(kpi?.error_rate ?? 0) > 0.05 ? 'critical' : (kpi?.error_rate ?? 0) > 0.02 ? 'warning' : 'healthy'}
-                tooltip="Average error rate across all services"
-                onClick={() => { window.location.href = '/logs?level=ERROR' }}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} md={6} lg={3}>
-              <KPICard
-                title="Latency P95 (avg)"
-                value={kpi?.latency_p95 ?? 0}
-                unit="ms"
-                status={(kpi?.latency_p95 ?? 0) > 1000 ? 'critical' : (kpi?.latency_p95 ?? 0) > 500 ? 'warning' : 'healthy'}
-                tooltip="Average P95 latency across all services"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} md={6} lg={3}>
-              <KPICard
-                title="Throughput (total)"
-                value={kpi?.throughput ?? 0}
-                unit="req/s"
-                status="healthy"
-                tooltip="Total requests per second across all services"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} md={6} lg={3}>
-              <KPICard
-                title="Service Health"
-                value={`${healthyCount}/${services.length}`}
-                status={degradedCount > 0 ? 'warning' : 'healthy'}
-                tooltip={`${healthyCount} healthy, ${degradedCount} degraded`}
-                onClick={() => { window.location.href = '/settings' }}
-              />
-            </Grid>
-          </>
-        )}
-      </Grid>
+      {/* ① Status Banner */}
+      <StatusBanner
+        serviceHealth={serviceHealth}
+        isLoading={isLoading}
+        onRefresh={handleRefresh}
+        lastUpdated={lastUpdated}
+      />
 
-      {/* Services + Alerts */}
-      <Grid container spacing={{ xs: 1.5, sm: 2, md: 2 }}>
-        {/* Services Table */}
-        <Grid item xs={12} md={12} lg={8}>
-          <Card sx={{ bgcolor: theme => (theme.palette.mode === 'dark' ? '#0f172a' : '#ffffff'), border: '1px solid', borderColor: theme => theme.palette.divider }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Services Overview</Typography>
-                <Button size="small" endIcon={<ArrowRightIcon />} sx={{ color: theme => theme.palette.primary.light, textTransform: 'none', fontSize: '0.875rem', '&:hover': { color: theme => theme.palette.primary.main } }} onClick={() => { window.location.href = '/logs' }}>
-                  View All
-                </Button>
-              </Box>
-              <Box sx={{ overflowX: 'auto' }}>
-                <Table size="small" sx={{ minWidth: 500 }}>
-                  <TableHead>
-                    <TableRow sx={{ borderBottom: '1px solid', borderColor: theme => theme.palette.divider }}>
-                      {['Service', 'Status', 'Envs', 'Error Rate'].map((h, i) => (
-                        <TableCell key={h} align={i > 0 ? 'center' : undefined} sx={{ color: theme => theme.palette.text.primary, fontWeight: 700, fontSize: '0.8rem', padding: '10px 12px', whiteSpace: 'nowrap' }}>
-                          {h}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {loading
-                      ? Array.from({ length: 4 }).map((_, i) => <TableRowSkeleton key={i} cols={4} />)
-                      : services.slice(0, 6).map(svc => {
-                          const st = svc.error_rate >= 0.05 ? 'degraded' : 'healthy'
-                          const c = statusColors[st]
-                          return (
-                            <TableRow key={svc.service} onClick={() => { window.location.href = `/logs?service=${svc.service}` }} sx={{ borderBottom: '1px solid', borderColor: theme => theme.palette.divider, cursor: 'pointer', '&:hover': { bgcolor: theme => theme.palette.mode === 'dark' ? '#1e293b' : '#f5f9fc' } }}>
-                              <TableCell sx={{ color: theme => theme.palette.text.primary, fontSize: '0.875rem', fontWeight: 600, padding: '12px', whiteSpace: 'nowrap' }}>{svc.service}</TableCell>
-                              <TableCell align="center" sx={{ padding: '12px' }}>
-                                <Chip label={st} size="small" sx={{ bgcolor: c.bg, color: c.text, fontWeight: 600, fontSize: '0.75rem' }} />
-                              </TableCell>
-                              <TableCell align="center" sx={{ color: theme => theme.palette.text.primary, fontSize: '0.875rem', fontFamily: 'monospace', padding: '12px', fontWeight: 500 }}>{svc.envs.join(', ')}</TableCell>
-                              <TableCell align="center" sx={{ color: theme => theme.palette.text.primary, fontSize: '0.875rem', fontFamily: 'monospace', padding: '12px', fontWeight: 500 }}>{(svc.error_rate * 100).toFixed(1)}%</TableCell>
-                            </TableRow>
-                          )
-                        })}
-                  </TableBody>
-                </Table>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
+      {/* ② KPI Row */}
+      <KpiRow
+        serviceHealth={serviceHealth}
+        metricSeries={metricsData}
+        traces={traces}
+        errorLogs={errorLogs}
+        isLoading={isLoading || isTracesLoading || isLogsLoading}
+      />
 
-        {/* Alerts */}
-        <Grid item xs={12} md={12} lg={4}>
-          <Card sx={{ bgcolor: theme => (theme.palette.mode === 'dark' ? '#0f172a' : '#ffffff'), border: '1px solid', borderColor: theme => theme.palette.divider }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Recent Alerts</Typography>
-                <Button size="small" endIcon={<ArrowRightIcon />} sx={{ color: theme => theme.palette.primary.light, textTransform: 'none', fontSize: '0.875rem', '&:hover': { color: theme => theme.palette.primary.main } }}>
-                  See All
-                </Button>
-              </Box>
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                {loading ? (
-                  Array.from({ length: 3 }).map((_, i) => <AlertSkeleton key={i} />)
-                ) : alerts.length > 0 ? (
-                  alerts.map(svc => {
-                    const sev = svc.error_rate >= 0.1 ? 'critical' : svc.error_rate >= 0.05 ? 'error' : 'warning'
-                    const sc = severityColors[sev]
-                    return (
-                      <Card key={svc.service} variant="outlined" sx={{ bgcolor: theme => (theme.palette.mode === 'dark' ? '#1e293b' : '#f8fafc'), borderLeft: `4px solid ${sc.borderColor}`, borderTop: 'none', borderRight: 'none', borderBottom: 'none', borderColor: 'transparent', cursor: 'pointer', transition: 'all 0.2s', '&:hover': { bgcolor: theme => (theme.palette.mode === 'dark' ? '#334155' : '#eef2f7') } }}>
-                        <CardContent sx={{ py: 1.5, px: 2, '&:last-child': { pb: 1.5 } }}>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                            <Typography variant="caption" sx={{ fontWeight: 700, color: theme => theme.palette.text.primary, fontSize: '0.8rem' }}>
-                              High Error Rate — {svc.service}
-                            </Typography>
-                            <Chip label={sev} size="small" sx={{ bgcolor: sc.bg, color: sc.text, fontWeight: 600, fontSize: '0.65rem' }} />
-                          </Box>
-                          <Typography variant="caption" sx={{ color: theme => theme.palette.text.secondary, display: 'block', fontSize: '0.75rem', lineHeight: 1.4 }}>
-                            Error rate {(svc.error_rate * 100).toFixed(1)}% (envs: {svc.envs.join(', ')})
-                          </Typography>
-                        </CardContent>
-                      </Card>
-                    )
-                  })
-                ) : (
-                  <Typography variant="body2" sx={{ color: theme => theme.palette.text.secondary, textAlign: 'center', py: 2 }}>
-                    No alerts — all services healthy
-                  </Typography>
-                )}
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
+      {/* ③ Error Rate Chart + ④ Heatmap */}
+      <Box sx={{ display: 'flex', gap: 2, alignItems: 'stretch' }}>
+        <ErrorRateChart serviceHealth={serviceHealth} metricSeries={metricsData} />
+        <ServiceHeatmap serviceHealth={serviceHealth} />
+      </Box>
 
-      {/* Recent Logs */}
-      <Card sx={{ bgcolor: theme => (theme.palette.mode === 'dark' ? '#0f172a' : '#ffffff'), border: '1px solid', borderColor: theme => theme.palette.divider }}>
-        <CardContent>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>Recent Logs</Typography>
-            <Button size="small" endIcon={<ArrowRightIcon />} sx={{ color: theme => theme.palette.primary.light, textTransform: 'none', fontSize: '0.875rem', '&:hover': { color: theme => theme.palette.primary.main } }} onClick={() => { window.location.href = '/logs' }}>
-              View All Logs
-            </Button>
-          </Box>
-          <Box sx={{ overflowX: 'auto' }}>
-            <Table size="small">
-              <TableHead>
-                <TableRow sx={{ borderBottom: '1px solid', borderColor: theme => theme.palette.divider }}>
-                  {['Timestamp', 'Service', 'Level', 'Message'].map(h => (
-                    <TableCell key={h} sx={{ color: theme => theme.palette.text.primary, fontWeight: 700, fontSize: '0.8rem', padding: '10px 12px', whiteSpace: 'nowrap' }}>
-                      {h}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {loading
-                  ? Array.from({ length: 4 }).map((_, i) => <TableRowSkeleton key={i} cols={4} />)
-                  : logs.slice(0, 4).map(log => {
-                      const lc = levelColors[log.level ?? ''] ?? levelColors.INFO
-                      return (
-                        <TableRow key={log.id} onClick={() => { window.location.href = `/logs?service=${log.service}` }} sx={{ borderBottom: '1px solid', borderColor: theme => theme.palette.divider, cursor: 'pointer', '&:hover': { bgcolor: theme => (theme.palette.mode === 'dark' ? '#1e293b' : '#f5f9fc') } }}>
-                          <TableCell sx={{ color: theme => theme.palette.text.primary, fontSize: '0.8rem', fontFamily: 'monospace', fontWeight: 500, padding: '10px 12px' }}>
-                            {formatTimestamp(log.timestamp)}
-                          </TableCell>
-                          <TableCell sx={{ color: theme => theme.palette.text.primary, fontSize: '0.875rem', fontWeight: 600, padding: '10px 12px' }}>
-                            {log.service}
-                          </TableCell>
-                          <TableCell sx={{ padding: '10px 12px' }}>
-                            <Chip label={log.level} size="small" sx={{ bgcolor: lc.bg, color: lc.text, fontWeight: 600, fontSize: '0.75rem' }} />
-                          </TableCell>
-                          <TableCell sx={{ color: theme => theme.palette.text.primary, fontSize: '0.8rem', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', padding: '10px 12px' }}>
-                            {log.message}
-                          </TableCell>
-                        </TableRow>
-                      )
-                    })}
-              </TableBody>
-            </Table>
-          </Box>
-        </CardContent>
-      </Card>
+      {/* ⑤ Activity Feed + ⑥ Platform Nav */}
+      <Box sx={{ display: 'flex', gap: 2, alignItems: 'stretch' }}>
+        <ActivityFeed errorLogs={errorLogs} errorTraces={errorTraces} />
+        <PlatformNavCards
+          errorLogs={errorLogs}
+          traces={traces}
+          serviceCount={serviceCount}
+          slackConnected={slackStatus?.connected ?? false}
+        />
+      </Box>
     </Box>
   )
 }
