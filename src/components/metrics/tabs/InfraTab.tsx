@@ -1,6 +1,7 @@
 'use client'
 
 import { Fragment, useMemo } from 'react'
+import type { Theme } from '@mui/material'
 import { useQuery } from '@tanstack/react-query'
 import { Box, Paper, Skeleton, Typography, useTheme } from '@mui/material'
 import {
@@ -86,7 +87,7 @@ function GaugeBar({ value, max, color, label }: { value: number; max: number; co
   )
 }
 
-const tooltipStyle = (theme: ReturnType<typeof useTheme>) => ({
+const tooltipStyle = (theme: Theme) => ({
   contentStyle: { backgroundColor: theme.palette.background.paper, border: `1px solid ${theme.palette.divider}`, borderRadius: 8, fontSize: 12 },
 })
 

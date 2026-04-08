@@ -124,9 +124,16 @@ function TracesTableComponent({ traces, selectedTraceId }: Props) {
         ))}
       </Box>
 
-      {traces.map(trace => (
-        <TraceRow key={trace.id} trace={trace} maxDuration={maxDuration} isSelected={selectedTraceId === trace.id} />
-      ))}
+      {traces.length === 0 ? (
+        <Box sx={{ py: 6, textAlign: 'center' }}>
+          <Typography variant="body2" sx={{ color: 'text.secondary', fontWeight: 600 }}>No traces match the current filters</Typography>
+          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>Try adjusting or clearing the filters above</Typography>
+        </Box>
+      ) : (
+        traces.map(trace => (
+          <TraceRow key={trace.id} trace={trace} maxDuration={maxDuration} isSelected={selectedTraceId === trace.id} />
+        ))
+      )}
     </Box>
   )
 }

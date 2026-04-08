@@ -636,19 +636,13 @@ export default function LogsPage() {
           />
 
           <Box sx={{ p: 1.5, minWidth: 0 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1.5 }}>
-              <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
-                <Typography variant="h5" sx={{ fontWeight: 800, fontFamily: 'monospace' }}>
-                  {filtered.length.toLocaleString()}
-                </Typography>
-                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600 }}>hits</Typography>
-              </Box>
-              {selectedBucketKey !== null && (
+            {selectedBucketKey !== null && (
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
                 <Button size="small" variant="outlined" onClick={() => setSelectedBucketKey(null)} sx={{ fontSize: 11, py: 0.25, px: 1 }}>
                   Clear time filter
                 </Button>
-              )}
-            </Box>
+              </Box>
+            )}
 
             {filtered.length === 0 ? (
               <NoDataState

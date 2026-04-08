@@ -279,6 +279,7 @@ export default function TracesPage() {
     return uniqueArray.sort((a, b) => b.startTime - a.startTime)
   }, [filteredTraces, sortKey])
   const hasTraces = sortedTraces.length > 0
+  const hasSourceTraces = sourceTraces.length > 0
 
   const handleSortChange = (event: SelectChangeEvent<SortKey>) => {
     setSortKey(event.target.value as SortKey)
@@ -429,7 +430,7 @@ export default function TracesPage() {
     )
   }
 
-  if (isTracesFetched && !hasTraces) {
+  if (isTracesFetched && !hasSourceTraces) {
     return (
       <Box>
         <Typography variant="h4" sx={{ fontWeight: 800, mb: 1 }}>Traces</Typography>
