@@ -7,6 +7,7 @@ import {
   ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts'
 import type { MetricSeries } from '@/lib/types'
+import LiveButton from '@/components/logs/LogFilters/LiveButton'
 
 type ServiceHealth = { service: string; env?: string; error_rate: number; rds_cpu?: number }
 
@@ -65,10 +66,7 @@ export default function ErrorRateChart({ serviceHealth, metricSeries }: Props) {
             4xx + 5xx ratio per service · last 30 points
           </Typography>
         </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-          <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#f87171', animation: 'pulse 2s infinite' }} />
-          <Typography variant="caption" sx={{ color: '#f87171', fontWeight: 700 }}>LIVE</Typography>
-        </Box>
+        <LiveButton value isStreaming onChange={() => {}} />
       </Box>
 
       <Box sx={{ height: 220 }}>
@@ -85,10 +83,10 @@ export default function ErrorRateChart({ serviceHealth, metricSeries }: Props) {
             <CartesianGrid stroke={theme.palette.divider} strokeDasharray="3 3" vertical={false} />
             <XAxis dataKey="time" tick={{ fontSize: 10, fill: theme.palette.text.secondary }} tickLine={false} axisLine={false} minTickGap={30} />
             <YAxis tick={{ fontSize: 10, fill: theme.palette.text.secondary }} tickLine={false} axisLine={false} width={36} tickFormatter={v => `${v}%`} />
-            <ReferenceLine y={5} stroke="#f87171" strokeDasharray="4 4" strokeWidth={1.5} label={{ value: 'threshold 5%', position: 'insideTopRight', fontSize: 10, fill: '#f87171' }} />
+            <ReferenceLine y={60} stroke="#f87171" strokeDasharray="4 4" strokeWidth={1.5} label={{ value: 'alert threshold 60%', position: 'insideTopRight', fontSize: 10, fill: '#f87171' }} />
             <Tooltip
               contentStyle={{ backgroundColor: theme.palette.background.paper, border: `1px solid ${theme.palette.divider}`, borderRadius: 8, fontSize: 12 }}
-              formatter={(value: number, name: string) => [`${value}%`, name]}
+              formatter={(value, name) => [`${(value ?? 0)}%`, name as string]}
             />
             <Legend wrapperStyle={{ fontSize: 11 }} />
             {services.map((svc, i) => (

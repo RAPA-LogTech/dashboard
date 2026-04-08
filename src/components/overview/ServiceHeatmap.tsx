@@ -10,8 +10,8 @@ interface Props {
 }
 
 function getHeatColor(errorRate: number): { bg: string; text: string; border: string } {
-  if (errorRate >= 10) return { bg: 'rgba(239,68,68,0.25)', text: '#fca5a5', border: '#ef4444' }
-  if (errorRate >= 5)  return { bg: 'rgba(239,68,68,0.15)', text: '#f87171', border: '#dc2626' }
+  if (errorRate >= 60) return { bg: 'rgba(239,68,68,0.25)', text: '#fca5a5', border: '#ef4444' }
+  if (errorRate >= 10)  return { bg: 'rgba(239,68,68,0.15)', text: '#f87171', border: '#dc2626' }
   if (errorRate >= 2)  return { bg: 'rgba(251,191,36,0.2)', text: '#fde68a', border: '#f59e0b' }
   if (errorRate >= 0.5) return { bg: 'rgba(251,191,36,0.1)', text: '#fbbf24', border: '#d97706' }
   return { bg: 'rgba(74,222,128,0.12)', text: '#86efac', border: '#22c55e' }
@@ -106,8 +106,8 @@ export default function ServiceHeatmap({ serviceHealth }: Props) {
             {[
               { label: '< 0.5%', color: '#22c55e' },
               { label: '0.5–2%', color: '#f59e0b' },
-              { label: '2–5%', color: '#f87171' },
-              { label: '≥ 5%', color: '#ef4444' },
+              { label: '2–10%', color: '#f87171' },
+              { label: '≥ 60%', color: '#ef4444' },
             ].map(item => (
               <Box key={item.label} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                 <Box sx={{ width: 10, height: 10, borderRadius: 0.5, bgcolor: item.color, opacity: 0.7 }} />

@@ -7,6 +7,8 @@ import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline'
 import RefreshIcon from '@mui/icons-material/Refresh'
 import { IconButton } from '@mui/material'
 
+import { useState, useEffect } from 'react'
+
 type ServiceHealth = { service: string; env?: string; error_rate: number; rds_cpu?: number }
 
 interface Props {
@@ -17,9 +19,30 @@ interface Props {
 }
 
 export default function StatusBanner({ serviceHealth, isLoading, onRefresh, lastUpdated }: Props) {
+  const [elapsed, setElapsed] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (!lastUpdated) { setElapsed(null); return }
+
+    let id: ReturnType<typeof setInterval>
+
+    const schedule = () => {
+      const secs = Math.floor((Date.now() - lastUpdated.getTime()) / 1000)
+      setElapsed(secs)
+      const next = secs >= 60 ? 60000 : 1000
+      id = setInterval(() => {
+        clearInterval(id)
+        schedule()
+      }, next)
+    }
+
+    schedule()
+    return () => clearInterval(id)
+  }, [lastUpdated])
+
   const services = serviceHealth.filter(h => h.rds_cpu === undefined)
-  const critical = services.filter(s => s.error_rate >= 5)
-  const degraded = services.filter(s => s.error_rate >= 1 && s.error_rate < 5)
+  const critical = services.filter(s => s.error_rate >= 60)
+  const degraded = services.filter(s => s.error_rate >= 1 && s.error_rate < 60)
 
   const status = critical.length > 0 ? 'critical' : degraded.length > 0 ? 'degraded' : 'healthy'
 
@@ -52,10 +75,6 @@ export default function StatusBanner({ serviceHealth, isLoading, onRefresh, last
       chipBg: 'rgba(248,113,113,0.15)',
     },
   }[status]
-
-  const elapsed = lastUpdated
-    ? Math.floor((Date.now() - lastUpdated.getTime()) / 1000)
-    : null
 
   return (
     <Box

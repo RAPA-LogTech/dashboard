@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { Box, Paper, Typography, Chip, Stack } from '@mui/material'
 import ArticleIcon from '@mui/icons-material/Article'
 import AccountTreeIcon from '@mui/icons-material/AccountTree'
+import LiveButton from '@/components/logs/LogFilters/LiveButton'
 import type { LogEntry, Trace } from '@/lib/types'
 
 interface Props {
@@ -58,10 +59,7 @@ export default function ActivityFeed({ errorLogs, errorTraces }: Props) {
             Recent errors from logs &amp; traces
           </Typography>
         </Box>
-        <Stack direction="row" alignItems="center" gap={0.75}>
-          <Box sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: '#f87171', animation: 'pulse 2s infinite' }} />
-          <Typography variant="caption" sx={{ color: '#f87171', fontWeight: 700 }}>LIVE</Typography>
-        </Stack>
+        <LiveButton value isStreaming onChange={() => {}} />
       </Box>
 
       {items.length === 0 ? (

@@ -119,7 +119,7 @@ export default function KpiRow({ serviceHealth, metricSeries, traces, errorLogs,
         label="AVG ERROR RATE"
         value={`${avgError.toFixed(2)}%`}
         sub="across all services"
-        color={avgError >= 5 ? '#f87171' : avgError >= 1 ? '#fbbf24' : '#4ade80'}
+        color={avgError >= 60 ? '#f87171' : avgError >= 1 ? '#fbbf24' : '#4ade80'}
         sparkPoints={errorSparkPoints}
         isLoading={isLoading}
       />

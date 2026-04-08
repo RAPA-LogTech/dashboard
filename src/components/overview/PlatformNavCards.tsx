@@ -44,7 +44,7 @@ export default function PlatformNavCards({ errorLogs, traces, serviceCount, slac
       label: 'Metrics',
       href: '/metrics',
       color: '#34d399',
-      desc: 'AMP · Container · Host · JVM',
+      desc: 'AMP · Container · Host metrics',
       badge: `${serviceCount} services`,
       badgeColor: '#34d399',
     },

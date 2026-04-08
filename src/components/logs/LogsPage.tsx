@@ -576,45 +576,35 @@ export default function LogsPage() {
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 1.5, sm: 2, md: 3 } }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Typography variant="h4" sx={{ fontWeight: 'bold' }}>Logs</Typography>
-          <Skeleton variant="rounded" width={80} height={28} />
+          <Skeleton variant="rounded" width={80} height={32} />
         </Box>
-        <Paper
-          variant="outlined"
-          sx={{ borderColor: 'divider', bgcolor: 'background.paper', overflow: 'hidden' }}
-        >
+        <Paper variant="outlined" sx={{ borderColor: 'divider', bgcolor: 'background.paper', overflow: 'hidden' }}>
+          {/* Search bar */}
           <Box sx={{ p: 1.5 }}>
-            <Skeleton variant="rounded" height={40} />
+            <Skeleton variant="rounded" height={44} />
           </Box>
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', lg: '300px minmax(0, 1fr)' },
-              minHeight: 520,
-            }}
-          >
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '300px minmax(0, 1fr)' }, minHeight: 520 }}>
             {/* Field Explorer skeleton */}
-            <Box sx={{ borderRight: '1px solid', borderColor: 'divider', p: 1.5, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-              <Skeleton variant="rounded" height={32} />
-              <Skeleton variant="rounded" height={32} />
-              {Array.from({ length: 6 }).map((_, i) => (
-                <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <Skeleton variant="circular" width={8} height={8} />
-                  <Skeleton variant="text" width={`${60 + (i % 3) * 15}%`} height={18} />
+            <Box sx={{ borderRight: '1px solid', borderColor: 'divider', p: 1.5, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Skeleton variant="rounded" height={40} />
+              <Skeleton variant="rounded" height={40} />
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Box key={i} sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  <Skeleton variant="rounded" height={28} />
+                  <Skeleton variant="rounded" height={28} sx={{ opacity: 0.6 }} />
                 </Box>
               ))}
             </Box>
             {/* Main content skeleton */}
-            <Box sx={{ p: 1.5, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-              <Skeleton variant="text" width={100} height={32} sx={{ mx: 'auto' }} />
-              <Skeleton variant="rounded" height={80} />
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <Box key={i} sx={{ display: 'grid', gridTemplateColumns: '160px 120px 80px 1fr', gap: 1.5, px: 1 }}>
-                    <Skeleton variant="text" height={18} />
-                    <Skeleton variant="text" height={18} />
-                    <Skeleton variant="rounded" width={50} height={18} />
-                    <Skeleton variant="text" height={18} />
-                  </Box>
+            <Box sx={{ p: 1.5, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Skeleton variant="text" width={120} height={36} sx={{ mx: 'auto' }} />
+              {/* Histogram */}
+              <Skeleton variant="rounded" height={140} />
+              {/* Table rows */}
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <Skeleton variant="rounded" height={44} />
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <Skeleton key={i} variant="rounded" height={44} sx={{ opacity: 1 - i * 0.1 }} />
                 ))}
               </Box>
             </Box>
